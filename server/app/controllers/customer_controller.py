@@ -2,7 +2,9 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from fastapi import HTTPException, status
 from app.models.person import Person
+from app.models.user import User
 from app.schemas.customer import CustomerCreate, CustomerUpdate
+from app.core.security import hash_password
 
 
 class CustomerController:
@@ -19,8 +21,19 @@ class CustomerController:
         return db.query(Person).filter(Person.person_id == person_id).first()
 
     @staticmethod
-    def get_all(db: Session, skip: int = 0, limit: int = 100) -> list:
-        return db.query(Person).offset(skip).limit(limit).all()
+    def get_all(db: Session, skip: int = 0, limit: int = 100, store_id: Optional[int] = None) -> list:
+        """Get all customers (persons who placed orders); optionally filter by store_id."""
+        query = db.query(Person).distinct()
+        if store_id:
+            # Join Person -> Order -> Inventory -> filter by store_id
+            from app.models.order import Order
+            from app.models.inventory import Inventory
+            query = (
+                query.join(Order, Order.person_id == Person.person_id)
+                .join(Inventory, Inventory.inventory_id == Order.inventory_id)
+                .filter(Inventory.store_id == store_id)
+            )
+        return query.offset(skip).limit(limit).all()
 
     @staticmethod
     def create(db: Session, data: CustomerCreate) -> Person:
@@ -38,7 +51,10 @@ class CustomerController:
                 detail="Customer with this email already exists"
             )
 
-        person = Person(**data.model_dump())
+        # Create person with default password (customers created by admin/staff)
+        person_data = data.model_dump()
+        person_data['password'] = hash_password(data.person_contact)  # Password = contact number by default
+        person = Person(**person_data)
         db.add(person)
         db.commit()
         db.refresh(person)

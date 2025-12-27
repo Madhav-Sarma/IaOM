@@ -1,19 +1,30 @@
 export interface ProductCreate {
-  name: string
-  sku: string
-  price: number
-  stock_quantity: number
+  SKU: string
+  prod_name: string
+  prod_category: string
+  prod_description?: string
+  unit_price: number
+  inventory: number
 }
 
 export interface ProductUpdate {
-  name?: string
-  sku?: string
-  price?: number
-  stock_quantity?: number
+  prod_name?: string
+  prod_category?: string
+  prod_description?: string
+  unit_price?: number
 }
 
-export interface ProductResponse extends ProductCreate {
-  id: number
-  created_at: string
-  updated_at: string
+export interface ProductInventoryUpdate {
+  inventory: number
+}
+
+export interface ProductResponse {
+  prod_id: number
+  store_id: number
+  SKU: string
+  prod_name: string
+  prod_category: string
+  prod_description?: string
+  unit_price: number
+  inventory: number
 }

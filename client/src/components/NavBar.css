@@ -1,0 +1,8 @@
+.nav{display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid #ddd;background:#fff}
+.nav .brand{font-weight:600}
+.nav .links{display:flex;gap:12px;align-items:center}
+.nav a{color:#0b5;text-decoration:none}
+.nav a:hover{text-decoration:underline}
+.nav .user-info{font-size:0.85rem;color:#666}
+.nav .logout-btn{padding:4px 8px;background:#f44;color:#fff;border:none;border-radius:3px;cursor:pointer}
+.nav .logout-btn:hover{background:#d33}

@@ -1,0 +1,275 @@
+.products-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.products-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.products-header h2 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.form-section {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.form-section h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #333;
+  font-size: 1.25rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.btn-secondary {
+  padding: 0.75rem 1.5rem;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+.products-table {
+  overflow-x: auto;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-top: 2rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+thead {
+  background-color: #f5f5f5;
+  border-bottom: 2px solid #ddd;
+}
+
+th, td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+th {
+  font-weight: 600;
+  color: #333;
+}
+
+tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+td input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-small {
+  padding: 0.4rem 0.75rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  padding: 0.75rem 1.5rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-small.btn-edit {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-small.btn-edit:hover {
+  background-color: #218838;
+}
+
+.btn-small.btn-success {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-small.btn-success:hover {
+  background-color: #218838;
+}
+
+.btn-small.btn-info {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.btn-small.btn-info:hover {
+  background-color: #138496;
+}
+
+.btn-small.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-small.btn-danger:hover {
+  background-color: #c82333;
+}
+
+.status {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.status.info {
+  background-color: #e7f3ff;
+  color: #0c5c7d;
+  border: 1px solid #b3d9ff;
+}
+
+.status.error {
+  background-color: #ffe7e7;
+  color: #7d0c0c;
+  border: 1px solid #ffb3b3;
+}
+
+.empty-state {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: #999;
+  font-size: 1.1rem;
+  background: #f9f9f9;
+  border: 1px dashed #ddd;
+  border-radius: 8px;
+  margin-top: 2rem;
+}
+
+@media (max-width: 768px) {
+  .products-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  table {
+    font-size: 0.9rem;
+  }
+
+  th, td {
+    padding: 0.75rem;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+}
+
+.inventory-empty {
+  color: #dc3545;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  background-color: #ffe7e7;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.inventory-available {
+  color: #28a745;
+  font-weight: 600;
+}

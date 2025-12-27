@@ -19,10 +19,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Add unique constraint on person.person_contact."""
-    # Ensure no duplicates exist before applying constraint (optional safeguard)
-    # Note: This is a simple constraint addition; handling existing duplicates should be done manually if present.
-    op.create_unique_constraint('uq_person_contact', 'person', ['person_contact'])
+    """Add unique constraint on person.person_contact after removing duplicates."""
+    # Delete duplicate entries, keeping only the first occurrence (MySQL compatible)
+    op.execute("""
+        DELETE p FROM person p
+        INNER JOIN (
+            SELECT MAX(person_id) as person_id FROM person GROUP BY person_contact HAVING COUNT(*) > 1
+        ) dupes ON p.person_id = dupes.person_id
+    """)
+    # Create unique constraint - if it already exists, this is a no-op in MySQL
+    op.execute("""
+        ALTER TABLE person ADD UNIQUE KEY IF NOT EXISTS uq_person_contact (person_contact)
+    """)
 
 
 def downgrade() -> None:

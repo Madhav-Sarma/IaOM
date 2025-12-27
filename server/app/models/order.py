@@ -6,7 +6,7 @@ class Order(Base):
     __tablename__ = "orders"
     
     order_id = Column(Integer, primary_key=True, index=True)
-    status = Column(String(20), nullable=False)  # 'draft', 'confirmed', or 'cancelled'
+    status = Column(String(20), nullable=False)  # 'pending', 'confirmed', 'shipped', 'cancelled'
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     inventory_id = Column(Integer, ForeignKey("inventory.inventory_id"), nullable=False)

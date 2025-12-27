@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from app.core.database import get_db
-from app.core.security import require_roles
+from app.core.security import require_roles, get_token_payload
 from app.controllers.customer_controller import CustomerController
 from app.schemas.customer import (
     CustomerCreate,
@@ -14,14 +14,33 @@ from app.schemas.customer import (
 router = APIRouter()
 
 
-@router.get("/", response_model=List[CustomerResponse], dependencies=[Depends(require_roles(["admin", "staff"]))])
-def list_customers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """List all customers (staff/admin only)."""
-    customers = CustomerController.get_all(db, skip=skip, limit=limit)
+@router.get("/{contact}", response_model=CustomerResponse, dependencies=[Depends(require_roles(["admin", "staff"]))])
+def get_customer(contact: str, db: Session = Depends(get_db)):
+    """Get a single customer by contact (staff/admin only)."""
+    person = CustomerController.get_by_contact(db, contact)
+    if not person:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    return person
+
+@router.get("", response_model=List[CustomerResponse], dependencies=[Depends(require_roles(["admin", "staff"]))])
+def list_customers(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_token_payload),
+):
+    """List all customers for the authenticated user's store (staff/admin only)."""
+    store_id = payload.get("store_id")
+    if not store_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Store context missing"
+        )
+    customers = CustomerController.get_all(db, skip=skip, limit=limit, store_id=store_id)
     return customers
 
 
-@router.post("/", response_model=CustomerResponse, status_code=201, dependencies=[Depends(require_roles(["admin", "staff"]))])
+@router.post("", response_model=CustomerResponse, status_code=201, dependencies=[Depends(require_roles(["admin", "staff"]))])
 def create_customer(data: CustomerCreate, db: Session = Depends(get_db)):
     """Create a customer (staff/admin only)."""
     person = CustomerController.create(db, data)

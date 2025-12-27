@@ -9,3 +9,4 @@ class Person(Base):
     person_email = Column(String(255), nullable=False)
     person_contact = Column(String(50), nullable=False, unique=True, index=True)
     person_address = Column(String(500), nullable=False)
+    password = Column(String(255), nullable=False)

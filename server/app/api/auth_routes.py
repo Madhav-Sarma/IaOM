@@ -5,8 +5,11 @@ from app.controllers.auth_controller import AuthController
 from app.schemas.auth import (
     SignupRequest, SignupResponse,
     LoginRequest, LoginResponse,
-    BuyPackageRequest, BuyPackageResponse
+    BuyPackageRequest, BuyPackageResponse,
+    CreateStaffRequest, CreateStaffResponse,
+    ProfileResponse, ProfileUpdate,
 )
+from app.core.security import require_roles, get_token_payload
 
 router = APIRouter()
 
@@ -42,3 +45,73 @@ def buy_package(data: BuyPackageRequest, db: Session = Depends(get_db)):
     """
     result = AuthController.buy_package(db, data)
     return BuyPackageResponse(**result)
+
+
+@router.post("/create-staff", response_model=CreateStaffResponse, dependencies=[Depends(require_roles(["admin"]))])
+def create_staff(
+    data: CreateStaffRequest,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_token_payload),
+):
+    """Create a staff user for the admin's store (admin only)."""
+    result = AuthController.create_staff(db, data, payload)
+    return CreateStaffResponse(**result)
+
+
+@router.put("/deactivate-staff/{staff_contact}", dependencies=[Depends(require_roles(["admin"]))])
+def deactivate_staff(
+    staff_contact: str,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_token_payload),
+):
+    """Admin deactivates a staff account (sets is_active = False)."""
+    result = AuthController.deactivate_staff(db, staff_contact, payload)
+    return result
+
+@router.get("/staff-list", dependencies=[Depends(require_roles(["admin", "staff"]))])
+def list_staff(
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_token_payload),
+):
+    """List all staff (including admin) for the authenticated user's store."""
+    from app.models.user import User
+    from app.models.person import Person
+    store_id = payload.get("store_id")
+    if not store_id:
+        raise HTTPException(status_code=400, detail="Store context missing")
+    
+    staff = (
+        db.query(Person.person_id, Person.person_name, Person.person_email, Person.person_contact, User.role, User.is_active)
+        .join(User, User.person_id == Person.person_id)
+        .filter(User.store_id == store_id)
+        .all()
+    )
+    
+    return [
+        {
+            "person_id": s.person_id,
+            "person_name": s.person_name,
+            "person_email": s.person_email,
+            "person_contact": s.person_contact,
+            "role": s.role,
+            "is_active": s.is_active,
+        }
+        for s in staff
+    ]
+
+
+@router.get("/me", response_model=ProfileResponse, dependencies=[Depends(require_roles(["admin", "staff"]))])
+def get_profile(
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_token_payload),
+):
+    return AuthController.get_profile(db, payload)
+
+
+@router.put("/me", response_model=ProfileResponse, dependencies=[Depends(require_roles(["admin", "staff"]))])
+def update_profile(
+    data: ProfileUpdate,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_token_payload),
+):
+    return AuthController.update_profile(db, payload, data)

@@ -8,5 +8,4 @@ class User(Base):
     person_id = Column(Integer, ForeignKey("person.person_id"), nullable=False)
     role = Column(String(20), nullable=False)  # 'staff' or 'admin'
     store_id = Column(Integer, ForeignKey("store.store_id"), nullable=False)
-    password = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True)
