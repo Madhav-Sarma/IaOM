@@ -23,6 +23,8 @@ export interface OrderResponse {
   person_id: number
   created_by: number
   person_contact?: string
+  created_at?: string
+  unit_price?: number
 }
 
 export interface InventoryItem {

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app.models.product import Product
 from app.models.inventory import Inventory
+from app.models.order import Order
 from app.schemas.product import ProductCreate, ProductUpdate, ProductInventoryUpdate
 from fastapi import HTTPException, status
 
@@ -106,9 +107,9 @@ class ProductController:
 
     @staticmethod
     def update_inventory(db: Session, prod_id: int, store_id: int, data: ProductInventoryUpdate) -> Product:
-        """Admin/Staff updates product inventory."""
+        """Admin/Staff adds stock to product inventory."""
         product = ProductController.get_product_by_id(db, prod_id, store_id)
-        product.inventory = data.inventory
+        product.inventory += data.add_quantity
 
         # Keep Inventory.units in sync for this store/product
         inv = db.query(Inventory).filter(
@@ -116,9 +117,9 @@ class ProductController:
             Inventory.product_id == product.prod_id,
         ).first()
         if inv:
-            inv.units = data.inventory
+            inv.units += data.add_quantity
         else:
-            inv = Inventory(store_id=store_id, product_id=product.prod_id, units=data.inventory)
+            inv = Inventory(store_id=store_id, product_id=product.prod_id, units=product.inventory)
             db.add(inv)
         db.commit()
         db.refresh(product)
@@ -126,8 +127,38 @@ class ProductController:
 
     @staticmethod
     def delete_product(db: Session, prod_id: int, store_id: int) -> dict:
-        """Admin deletes a product."""
+        """Admin deletes a product. Cancels all pending orders and removes inventory."""
         product = ProductController.get_product_by_id(db, prod_id, store_id)
+        
+        # Find all inventory entries for this product
+        inventories = db.query(Inventory).filter(
+            Inventory.product_id == prod_id,
+            Inventory.store_id == store_id
+        ).all()
+        
+        inventory_ids = [inv.inventory_id for inv in inventories]
+        
+        cancelled_orders = 0
+        if inventory_ids:
+            # Cancel all pending orders for these inventory items
+            pending_orders = db.query(Order).filter(
+                Order.inventory_id.in_(inventory_ids),
+                Order.status == 'pending'
+            ).all()
+            
+            for order in pending_orders:
+                order.status = 'cancelled'
+                cancelled_orders += 1
+            
+            # Delete all inventory entries
+            for inv in inventories:
+                db.delete(inv)
+        
+        # Delete the product
         db.delete(product)
         db.commit()
-        return {"message": "Product deleted successfully"}
+        
+        return {
+            "message": "Product deleted successfully",
+            "cancelled_orders": cancelled_orders
+        }

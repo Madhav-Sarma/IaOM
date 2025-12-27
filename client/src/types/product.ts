@@ -15,7 +15,7 @@ export interface ProductUpdate {
 }
 
 export interface ProductInventoryUpdate {
-  inventory: number
+  add_quantity: number
 }
 
 export interface ProductResponse {

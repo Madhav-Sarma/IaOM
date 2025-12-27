@@ -34,6 +34,10 @@ def update_settings(
     if not store:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Store not found")
 
+    if data.store_name is not None:
+        store.store_name = data.store_name
+    if data.store_address is not None:
+        store.store_address = data.store_address
     store.low_stock_threshold = data.low_stock_threshold
     store.restore_stock_on_cancel = data.restore_stock_on_cancel
     store.sales_lookback_days = data.sales_lookback_days

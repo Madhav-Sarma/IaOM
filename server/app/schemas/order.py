@@ -28,6 +28,7 @@ class OrderResponse(BaseModel):
     created_by: int
     person_contact: Optional[str] = None
     created_at: datetime
+    unit_price: Optional[Decimal] = None
 
     class Config:
         from_attributes = True

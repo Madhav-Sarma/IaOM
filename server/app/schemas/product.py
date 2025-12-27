@@ -17,7 +17,7 @@ class ProductUpdate(BaseModel):
     unit_price: Optional[Decimal] = None
 
 class ProductInventoryUpdate(BaseModel):
-    inventory: int  # New inventory quantity
+    add_quantity: int  # Quantity to add to current inventory
 
 class ProductResponse(BaseModel):
     prod_id: int

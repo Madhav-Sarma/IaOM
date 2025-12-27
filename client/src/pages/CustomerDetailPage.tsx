@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import DashboardLayout from '../components/DashboardLayout'
+import StatusBadge from '../components/StatusBadge'
 import type { CustomerResponse } from '../types/customer'
-import type { OrderResponse, OrderStatus, InventoryItem } from '../types/order'
+import type { OrderResponse, OrderStatus } from '../types/order'
 
 interface ReceiptLine {
   orderId: number
@@ -23,7 +25,6 @@ export default function CustomerDetailPage() {
 
   const [customer, setCustomer] = useState<CustomerResponse | null>(null)
   const [orders, setOrders] = useState<OrderResponse[]>([])
-  const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -40,7 +41,6 @@ export default function CustomerDetailPage() {
   useEffect(() => {
     if (!contact) return
     loadCustomer()
-    loadInventory()
     loadOrders()
   }, [contact])
 
@@ -57,15 +57,6 @@ export default function CustomerDetailPage() {
       setCustomer(data)
     } catch (e: any) {
       setError(extractError(e, 'Failed to load customer'))
-    }
-  }
-
-  const loadInventory = async () => {
-    try {
-      const { data } = await api.get<InventoryItem[]>(`/orders/inventory`, { headers: authHeader })
-      setInventory(data)
-    } catch (e: any) {
-      setError(extractError(e, 'Failed to load inventory'))
     }
   }
 
@@ -111,15 +102,6 @@ export default function CustomerDetailPage() {
     }
   }
 
-  const editReceiptInventory = async (line: ReceiptLine, newInvId: number) => {
-    try {
-      await api.put(`/orders/${line.orderId}`, { inventory_id: newInvId }, { headers: authHeader })
-      if (activeReceiptOrderId) await fetchReceipt(activeReceiptOrderId)
-    } catch (e: any) {
-      alert(e?.response?.data?.detail || 'Failed to change inventory')
-    }
-  }
-
   const editReceiptQuantity = async (line: ReceiptLine) => {
     const n = prompt('New quantity', String(line.quantity))
     if (!n) return
@@ -152,151 +134,160 @@ export default function CustomerDetailPage() {
   }
 
   return (
-    <div className="container" style={{ padding: 16 }}>
-      <h2>Customer Detail</h2>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
+    <DashboardLayout>
+      <div className="container-fluid py-4">
+        <h3 className="fw-bold mb-4">Customer Detail</h3>
+        {error && <div className="alert alert-danger">{error}</div>}
 
-      <section style={{ border:'1px solid #eee', padding:12, borderRadius:8, marginBottom:16 }}>
-        {customer ? (
-          <div>
-            <h3 style={{ marginTop:0 }}>{customer.person_name}</h3>
-            <div style={{ fontSize:14, color:'#555' }}>
-              <div>Contact: {customer.person_contact}</div>
-              <div>Email: {customer.person_email}</div>
-              <div>Address: {customer.person_address}</div>
-            </div>
-          </div>
-        ) : (
-          <div>Loading customer…</div>
-        )}
-      </section>
-
-      <section style={{ border:'1px solid #eee', padding:12, borderRadius:8 }}>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:12, marginBottom:12, alignItems:'center' }}>
-          <label>Filter status
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}>
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="shipped">Shipped</option>
-            </select>
-          </label>
-          <label>Start date
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-          </label>
-          <label>End date
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-          </label>
-          <div>
-            <button onClick={loadOrders} style={{ padding:'8px 12px' }}>Apply Filters</button>
-            <button onClick={() => { setStatusFilter('all'); setStartDate(''); setEndDate(''); loadOrders() }} style={{ marginLeft:8, padding:'8px 12px' }}>Reset</button>
-          </div>
-        </div>
-        {loading ? <div>Loading orders…</div> : (
-          <table className="table" style={{ width:'100%', borderCollapse:'collapse' }}>
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Status</th>
-                <th>Qty</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map(o => (
-                <tr key={o.order_id} onClick={() => fetchReceipt(o.order_id)} style={{ cursor:'pointer' }}>
-                  <td>{o.order_id}</td>
-                  <td>{o.status}</td>
-                  <td>{o.order_quantity}</td>
-                  <td>
-                    {o.status === 'pending' && (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); updateStatus(o, 'confirmed') }}>Confirm</button>
-                        <button onClick={(e) => { e.stopPropagation(); updateStatus(o, 'cancelled') }}>Cancel</button>
-                      </>
-                    )}
-                    {o.status === 'confirmed' && (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); updateStatus(o, 'shipped') }}>Mark shipped</button>
-                        <button onClick={(e) => { e.stopPropagation(); updateStatus(o, 'cancelled') }}>Cancel</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      {receiptLines.length > 0 && (
-        <section style={{ border: '1px dashed #aaa', padding: 12, borderRadius: 8, marginTop: 16 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 8 }}>
-            <div>
-              <h3 style={{ margin: 0 }}>Receipt</h3>
-              <div style={{ fontSize: 13, color: '#555' }}>
-                <div>Customer: {receiptContact || contact}</div>
-                <div>Created: {receiptCreatedAt || '—'}</div>
+        {/* Customer Info */}
+        <div className="card mb-4">
+          <div className="card-body">
+            {customer ? (
+              <div>
+                <h4 className="mb-3">{customer.person_name}</h4>
+                <div className="row">
+                  <div className="col-md-4"><strong>Contact:</strong> {customer.person_contact}</div>
+                  <div className="col-md-4"><strong>Email:</strong> {customer.person_email}</div>
+                  <div className="col-md-4"><strong>Address:</strong> {customer.person_address}</div>
+                </div>
               </div>
-            </div>
-            {receiptStatus && (
-              <span style={{ padding:'4px 8px', borderRadius: 6, background:'#eef', color:'#223' }}>Status: {receiptStatus}</span>
+            ) : (
+              <div className="text-center py-3">
+                <div className="spinner-border spinner-border-sm text-primary" role="status"></div>
+                <span className="ms-2">Loading customer…</span>
+              </div>
             )}
           </div>
-          <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Status</th>
-                <th>SKU</th>
-                <th>Product</th>
-                <th>Qty</th>
-                <th>Unit Price</th>
-                <th>Subtotal</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {receiptLines.map(line => (
-                <tr key={`r-${line.orderId}`}>
-                  <td>{line.orderId}</td>
-                  <td>{line.status}</td>
-                  <td>{line.SKU}</td>
-                  <td>{line.prodName}</td>
-                  <td>{line.quantity}</td>
-                  <td>{line.unitPrice.toFixed(2)}</td>
-                  <td>{line.subtotal.toFixed(2)}</td>
-                  <td>
-                    {line.status === 'pending' && (
-                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                        <select onChange={e => {
-                          const invId = Number(e.target.value)
-                          if (!invId) return
-                          editReceiptInventory(line, invId)
-                          e.currentTarget.selectedIndex = 0
-                        }}>
-                          <option value="">Change inventory…</option>
-                          {inventory.map(i => (
-                            <option key={i.inventory_id} value={i.inventory_id}>
-                              {i.SKU} - {i.prod_name} (units: {i.units})
-                            </option>
-                          ))}
-                        </select>
-                        <button onClick={() => editReceiptQuantity(line)}>Edit qty</button>
-                        <button onClick={() => cancelReceiptLine(line)}>Cancel</button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ textAlign: 'right', marginTop: 8 }}>
-            <strong>Grand Total: {receiptLines.reduce((sum, l) => sum + l.subtotal, 0).toFixed(2)}</strong>
+        </div>
+
+        {/* Orders with Filters */}
+        <div className="card mb-4">
+          <div className="card-header"><h5 className="mb-0">Orders</h5></div>
+          <div className="card-body">
+            <div className="row g-3 mb-3">
+              <div className="col-md-3">
+                <label className="form-label">Status</label>
+                <select className="form-select form-select-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}>
+                  <option value="all">All</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="shipped">Shipped</option>
+                </select>
+              </div>
+              <div className="col-md-3">
+                <label className="form-label">Start date</label>
+                <input className="form-control form-control-sm" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </div>
+              <div className="col-md-3">
+                <label className="form-label">End date</label>
+                <input className="form-control form-control-sm" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              </div>
+              <div className="col-md-3 d-flex align-items-end gap-2">
+                <button className="btn btn-primary btn-sm" onClick={loadOrders}>Apply</button>
+                <button className="btn btn-outline-secondary btn-sm" onClick={() => { setStatusFilter('all'); setStartDate(''); setEndDate(''); loadOrders() }}>Reset</button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="text-center py-4">
+                <div className="spinner-border text-primary" role="status"></div>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-hover">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Status</th>
+                      <th>Qty</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.map(o => (
+                      <tr key={o.order_id} onClick={() => fetchReceipt(o.order_id)} style={{ cursor: 'pointer' }}>
+                        <td>#{o.order_id}</td>
+                        <td><StatusBadge status={o.status} /></td>
+                        <td>{o.order_quantity}</td>
+                        <td>
+                          <div className="btn-group btn-group-sm">
+                            {o.status === 'pending' && (
+                              <>
+                                <button className="btn btn-success" onClick={(e) => { e.stopPropagation(); updateStatus(o, 'confirmed') }}>Confirm</button>
+                                <button className="btn btn-danger" onClick={(e) => { e.stopPropagation(); updateStatus(o, 'cancelled') }}>Cancel</button>
+                              </>
+                            )}
+                            {o.status === 'confirmed' && (
+                              <>
+                                <button className="btn btn-primary" onClick={(e) => { e.stopPropagation(); updateStatus(o, 'shipped') }}>Ship</button>
+                                <button className="btn btn-danger" onClick={(e) => { e.stopPropagation(); updateStatus(o, 'cancelled') }}>Cancel</button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        </section>
-      )}
-    </div>
+        </div>
+
+        {/* Receipt */}
+        {receiptLines.length > 0 && (
+          <div className="card border-dashed">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <div>
+                <h5 className="mb-1">Receipt</h5>
+                <small className="text-muted">Customer: {receiptContact || contact} | Created: {receiptCreatedAt || '—'}</small>
+              </div>
+              {receiptStatus && <StatusBadge status={receiptStatus} />}
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-sm">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Status</th>
+                      <th>SKU</th>
+                      <th>Product</th>
+                      <th>Qty</th>
+                      <th>Price</th>
+                      <th>Subtotal</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receiptLines.map(line => (
+                      <tr key={`r-${line.orderId}`}>
+                        <td>{line.orderId}</td>
+                        <td><StatusBadge status={line.status} /></td>
+                        <td>{line.SKU}</td>
+                        <td>{line.prodName}</td>
+                        <td>{line.quantity}</td>
+                        <td>{line.unitPrice.toFixed(2)}</td>
+                        <td>{line.subtotal.toFixed(2)}</td>
+                        <td>
+                          {line.status === 'pending' && (
+                            <div className="btn-group btn-group-sm">
+                              <button className="btn btn-outline-secondary" onClick={() => editReceiptQuantity(line)}>Edit</button>
+                              <button className="btn btn-outline-danger" onClick={() => cancelReceiptLine(line)}>Cancel</button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="text-end"><strong>Grand Total: {receiptLines.reduce((sum, l) => sum + l.subtotal, 0).toFixed(2)}</strong></div>
+            </div>
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
   )
 }

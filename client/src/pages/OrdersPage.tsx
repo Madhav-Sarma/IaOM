@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { useStore } from '../context/StoreContext'
+import DashboardLayout from '../components/DashboardLayout'
+import StatusBadge from '../components/StatusBadge'
 import type { OrderCreate, OrderResponse, OrderStatus, OrderStatusUpdate, InventoryItem } from '../types/order'
 
 interface CartItem {
@@ -24,6 +28,8 @@ interface ReceiptLine {
 
 export default function OrdersPage() {
   const { auth } = useAuth()
+  const { currency } = useStore()
+  const navigate = useNavigate()
   const [orders, setOrders] = useState<OrderResponse[]>([])
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -35,6 +41,7 @@ export default function OrdersPage() {
   const [receiptLines, setReceiptLines] = useState<ReceiptLine[]>([])
   const [activeReceiptOrderId, setActiveReceiptOrderId] = useState<number | null>(null)
   const [receiptContact, setReceiptContact] = useState<string>('')
+  const [receiptCustomerName, setReceiptCustomerName] = useState<string>('')
   const [receiptCreatedAt, setReceiptCreatedAt] = useState<string>('')
   const [receiptStatus, setReceiptStatus] = useState<OrderStatus | null>(null)
   const [selectedInventoryId, setSelectedInventoryId] = useState<number | ''>('')
@@ -45,6 +52,10 @@ export default function OrdersPage() {
   const [contactFilter, setContactFilter] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+
+  // Edit order state
+  const [editingOrder, setEditingOrder] = useState<OrderResponse | null>(null)
+  const [editOrderQty, setEditOrderQty] = useState<number>(1)
 
   const authHeader = useMemo(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token])
 
@@ -114,9 +125,19 @@ export default function OrdersPage() {
     const item = inventory.find(i => i.inventory_id === selectedInventoryId)
     if (!item) return
     
+    // Calculate total quantity including what's already in cart
+    const existingInCart = cart.find(c => c.inventoryId === selectedInventoryId)
+    const totalQty = (existingInCart?.quantity || 0) + selectedQty
+    
+    // Check against available inventory
+    if (totalQty > item.units) {
+      const available = item.units - (existingInCart?.quantity || 0)
+      alert(`Insufficient stock. Available: ${available > 0 ? available : 0}, Requested: ${selectedQty}`)
+      return
+    }
+    
     // Check if already in cart
-    const existing = cart.find(c => c.inventoryId === selectedInventoryId)
-    if (existing) {
+    if (existingInCart) {
       setCart(cart.map(c => c.inventoryId === selectedInventoryId ? { ...c, quantity: c.quantity + selectedQty } : c))
     } else {
       setCart([...cart, {
@@ -133,6 +154,20 @@ export default function OrdersPage() {
 
   const removeFromCart = (inventoryId: number) => {
     setCart(cart.filter(c => c.inventoryId !== inventoryId))
+  }
+
+  const updateCartQty = (inventoryId: number, newQty: number) => {
+    const item = inventory.find(i => i.inventory_id === inventoryId)
+    if (!item) return
+    if (newQty < 1) {
+      removeFromCart(inventoryId)
+      return
+    }
+    if (newQty > item.units) {
+      alert(`Cannot exceed available stock (${item.units})`)
+      return
+    }
+    setCart(cart.map(c => c.inventoryId === inventoryId ? { ...c, quantity: newQty } : c))
   }
 
   const checkout = async () => {
@@ -195,20 +230,12 @@ export default function OrdersPage() {
     }))
     setReceiptLines(lines)
     setReceiptContact(data.person_contact ?? '')
+    setReceiptCustomerName(data.person_name ?? '')
     setActiveReceiptOrderId(orderId)
-    // use first line timestamp as receipt created time
-    const created = (data.lines?.[0]?.created_at) ? new Date(data.lines[0].created_at).toLocaleString() : ''
+    // use receipt created_at from API
+    const created = data.created_at ? new Date(data.created_at).toLocaleString() : ''
     setReceiptCreatedAt(created)
     setReceiptStatus(lines[0]?.status ?? null)
-  }
-
-  const editReceiptInventory = async (line: ReceiptLine, newInvId: number) => {
-    try {
-      await api.put(`/orders/${line.orderId}`, { inventory_id: newInvId }, { headers: authHeader })
-      if (activeReceiptOrderId) await fetchReceipt(activeReceiptOrderId)
-    } catch (e: any) {
-      alert(e?.response?.data?.detail || 'Failed to change inventory')
-    }
   }
 
   const editReceiptQuantity = async (line: ReceiptLine) => {
@@ -252,230 +279,326 @@ export default function OrdersPage() {
     }
   }
 
+  // Edit order functions
+  const startEditOrder = (o: OrderResponse) => {
+    setEditingOrder(o)
+    setEditOrderQty(o.order_quantity)
+  }
+
+  const cancelEditOrder = () => {
+    setEditingOrder(null)
+    setEditOrderQty(1)
+  }
+
+  const saveOrderEdit = async () => {
+    if (!editingOrder) return
+    try {
+      const { data } = await api.put<OrderResponse>(
+        `/orders/${editingOrder.order_id}`,
+        { order_quantity: editOrderQty },
+        { headers: authHeader }
+      )
+      setOrders(orders.map(x => x.order_id === editingOrder.order_id ? data : x))
+      setEditingOrder(null)
+      setEditOrderQty(1)
+    } catch (e: any) {
+      alert(e?.response?.data?.detail || 'Failed to update order')
+    }
+  }
+
   return (
-    <div className="container" style={{ padding: 16 }}>
-      <h2>Orders</h2>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
+    <DashboardLayout>
+      <div className="container-fluid py-4">
+        <h3 className="fw-bold mb-4">Orders</h3>
+        {error && <div className="alert alert-danger">{error}</div>}
 
-      <section style={{ border: '1px solid #ddd', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-        <h3>Shopping Cart Checkout</h3>
-        <div style={{ marginBottom: 12 }}>
-          <label>Customer Contact</label>
-          <input value={contact} onChange={e => setContact(e.target.value)} onBlur={checkContact} />
-          {contactInfo && <div style={{ fontSize: 12, color: '#666' }}>{contactInfo}</div>}
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 12, marginBottom: 12 }}>
-          <div>
-            <label>Products In Your Store</label>
-            <select value={selectedInventoryId} onChange={e => setSelectedInventoryId(e.target.value ? Number(e.target.value) : '')}>
-              <option value="">Select item</option>
-              {inventory.length === 0 && (
-                <option value="" disabled>No products for your store</option>
-              )}
-              {inventory.map(i => (
-                <option key={i.inventory_id} value={i.inventory_id}>
-                  {i.SKU} - {i.prod_name} (units: {i.units})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label>Quantity</label>
-            <input type="number" min={1} value={selectedQty} onChange={e => setSelectedQty(Number(e.target.value))} />
-          </div>
-          <div style={{ alignSelf: 'end' }}>
-            <button onClick={addToCart}>Add to Cart</button>
-          </div>
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <h4>Cart ({cart.length} items)</h4>
-          {cart.length === 0 ? (
-            <div style={{ color: '#999' }}>Cart is empty</div>
-          ) : (
-            <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-              <thead>
-                <tr>
-                  <th>SKU</th>
-                  <th>Product</th>
-                  <th>Qty</th>
-                  <th>Unit Price</th>
-                  <th>Subtotal</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cart.map(item => (
-                  <tr key={item.inventoryId}>
-                    <td>{item.SKU}</td>
-                    <td>{item.prodName}</td>
-                    <td>{item.quantity}</td>
-                    <td>{item.unitPrice.toFixed(2)}</td>
-                    <td>{(item.unitPrice * item.quantity).toFixed(2)}</td>
-                    <td>
-                      <button onClick={() => removeFromCart(item.inventoryId)} style={{ fontSize: '12px' }}>Remove</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          {cart.length > 0 && (
-            <div style={{ textAlign: 'right', marginTop: 8 }}>
-              <strong>Total: {cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0).toFixed(2)}</strong>
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button onClick={checkout} disabled={loading || cart.length === 0} style={{ padding: '10px 20px', backgroundColor: '#28a745', color: 'white' }}>
-            {loading ? 'Checking out...' : 'Checkout'}
-          </button>
-          <button onClick={() => setCart([])} style={{ padding: '10px 20px' }}>Clear Cart</button>
-        </div>
-      </section>
-
-      {receiptLines.length > 0 && (
-        <section style={{ border: '1px dashed #aaa', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 8 }}>
-            <div>
-              <h3 style={{ margin: 0 }}>Receipt</h3>
-              <div style={{ fontSize: 13, color: '#555' }}>
-                <div>Customer: {receiptContact || '—'}</div>
-                <div>Created: {receiptCreatedAt || '—'}</div>
+        {/* Shopping Cart Checkout */}
+        <div className="card mb-4">
+          <div className="card-header"><h5 className="mb-0">Shopping Cart Checkout</h5></div>
+          <div className="card-body">
+            <div className="row g-3 mb-3">
+              <div className="col-12 col-sm-6 col-md-4">
+                <label className="form-label">Customer Contact</label>
+                <input className="form-control" value={contact} onChange={e => setContact(e.target.value)} onBlur={checkContact} />
+                {contactInfo && <small className="text-muted">{contactInfo}</small>}
+              </div>
+              <div className="col-12 col-sm-6 col-md-4">
+                <label className="form-label">Product</label>
+                <select className="form-select" value={selectedInventoryId} onChange={e => setSelectedInventoryId(e.target.value ? Number(e.target.value) : '')}>
+                  <option value="">Select item</option>
+                  {inventory.length === 0 && <option value="" disabled>No products</option>}
+                  {inventory.map(i => (
+                    <option key={i.inventory_id} value={i.inventory_id}>
+                      {i.SKU} - {i.prod_name} (units: {i.units})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-6 col-md-2">
+                <label className="form-label">Qty</label>
+                <input 
+                  className="form-control" 
+                  type="number" 
+                  min={1} 
+                  max={selectedInventoryId ? (inventory.find(i => i.inventory_id === selectedInventoryId)?.units || 1) - (cart.find(c => c.inventoryId === selectedInventoryId)?.quantity || 0) : undefined}
+                  value={selectedQty} 
+                  onChange={e => setSelectedQty(Math.max(1, Number(e.target.value)))} 
+                />
+                {selectedInventoryId && (
+                  <small className="text-muted">
+                    Available: {Math.max(0, (inventory.find(i => i.inventory_id === selectedInventoryId)?.units || 0) - (cart.find(c => c.inventoryId === selectedInventoryId)?.quantity || 0))}
+                  </small>
+                )}
+              </div>
+              <div className="col-6 col-md-2 d-flex align-items-end">
+                <button className="btn btn-primary w-100" onClick={addToCart}>Add</button>
               </div>
             </div>
-            {receiptStatus && (
-              <span style={{ padding:'4px 8px', borderRadius: 6, background:'#eef', color:'#223' }}>Status: {receiptStatus}</span>
-            )}
-          </div>
-          <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Status</th>
-                <th>SKU</th>
-                <th>Product</th>
-                <th>Qty</th>
-                <th>Unit Price</th>
-                <th>Subtotal</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {receiptLines.map(line => (
-                <tr key={`r-${line.orderId}`}>
-                  <td>{line.orderId}</td>
-                  <td>{line.status}</td>
-                  <td>{line.SKU}</td>
-                  <td>{line.prodName}</td>
-                  <td>{line.quantity}</td>
-                  <td>{line.unitPrice.toFixed(2)}</td>
-                  <td>{line.subtotal.toFixed(2)}</td>
-                  <td>
-                    {line.status === 'pending' && (
-                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                        <select onChange={e => {
-                          const invId = Number(e.target.value)
-                          if (!invId) return
-                          editReceiptInventory(line, invId)
-                          e.currentTarget.selectedIndex = 0
-                        }}>
-                          <option value="">Change inventory…</option>
-                          {inventory.map(i => (
-                            <option key={i.inventory_id} value={i.inventory_id}>
-                              {i.SKU} - {i.prod_name} (units: {i.units})
-                            </option>
-                          ))}
-                        </select>
-                        <button onClick={() => editReceiptQuantity(line)}>Edit qty</button>
-                        <button onClick={() => cancelReceiptLine(line)}>Cancel</button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ textAlign: 'right', marginTop: 8 }}>
-            <strong>Grand Total: {receiptLines.reduce((sum, l) => sum + l.subtotal, 0).toFixed(2)}</strong>
-          </div>
-        </section>
-      )}
 
-      <section style={{ border: '1px solid #eee', padding: 12, borderRadius: 8 }}>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:12, marginBottom:12, alignItems:'center' }}>
-          <label>Filter status
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}>
-              <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="shipped">Shipped</option>
-            </select>
-          </label>
-          <label>Customer contact
-            <input value={contactFilter} onChange={e => setContactFilter(e.target.value)} placeholder="e.g. phone" />
-          </label>
-          <label>Start date
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-          </label>
-          <label>End date
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-          </label>
-          <label style={{ display:'flex', alignItems:'center', gap:6 }}>
-            <input type="checkbox" checked={previousOnly} onChange={e => setPreviousOnly(e.target.checked)} />
-            Previous orders only (exclude pending)
-          </label>
-          <div>
-            <button onClick={loadOrders} style={{ padding:'8px 12px' }}>Apply Filters</button>
-            <button onClick={() => { setStatusFilter('all'); setContactFilter(''); setStartDate(''); setEndDate(''); setPreviousOnly(false); loadOrders() }} style={{ marginLeft:8, padding:'8px 12px' }}>Reset</button>
+            {/* Cart */}
+            <h6>Cart ({cart.length} items)</h6>
+            {cart.length === 0 ? (
+              <p className="text-muted">Cart is empty</p>
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-sm">
+                  <thead className="table-light">
+                    <tr>
+                      <th>SKU</th>
+                      <th>Product</th>
+                      <th style={{ width: '100px' }}>Qty</th>
+                      <th>Price</th>
+                      <th>Subtotal</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cart.map(item => {
+                      const invItem = inventory.find(i => i.inventory_id === item.inventoryId)
+                      const maxQty = invItem?.units || item.quantity
+                      return (
+                        <tr key={item.inventoryId}>
+                          <td>{item.SKU}</td>
+                          <td>{item.prodName}</td>
+                          <td>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              min={1}
+                              max={maxQty}
+                              value={item.quantity}
+                              onChange={e => updateCartQty(item.inventoryId, Number(e.target.value))}
+                              style={{ width: '70px' }}
+                            />
+                          </td>
+                          <td>{currency}{item.unitPrice.toFixed(2)}</td>
+                          <td>{currency}{(item.unitPrice * item.quantity).toFixed(2)}</td>
+                          <td><button className="btn btn-sm btn-outline-danger" onClick={() => removeFromCart(item.inventoryId)}>×</button></td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {cart.length > 0 && (
+              <div className="text-end mb-3"><strong>Total: {currency}{cart.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0).toFixed(2)}</strong></div>
+            )}
+            <div className="d-flex gap-2">
+              <button className="btn btn-success" onClick={checkout} disabled={loading || cart.length === 0}>
+                {loading ? 'Checking out...' : 'Checkout'}
+              </button>
+              <button className="btn btn-secondary" onClick={() => setCart([])}>Clear</button>
+            </div>
           </div>
         </div>
-        {loading ? <div>Loading...</div> : (
-          <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Customer Contact</th>
-                <th>Status</th>
-                <th>Qty</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(orders.filter(o => {
-                if (previousOnly && o.status === 'pending') return false
-                if (statusFilter === 'all') return true
-                return o.status === statusFilter
-              })).map(o => (
-                <tr key={o.order_id} onClick={() => fetchReceipt(o.order_id)} style={{ cursor: 'pointer' }}>
-                  <td>{o.order_id}</td>
-                  <td>{o.person_contact ?? ''}</td>
-                  <td>{o.status}</td>
-                  <td>{o.order_quantity}</td>
-                  <td>
-                    {o.status === 'pending' && (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); updateStatus(o, 'confirmed') }}>Confirm</button>
-                        <button onClick={(e) => { e.stopPropagation(); updateStatus(o, 'cancelled') }}>Cancel</button>
-                      </>
-                    )}
-                    {o.status === 'confirmed' && (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); updateStatus(o, 'shipped') }}>Mark shipped</button>
-                        <button onClick={(e) => { e.stopPropagation(); updateStatus(o, 'cancelled') }}>Cancel</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+        {/* Receipt */}
+        {receiptLines.length > 0 && (
+          <div className="card mb-4 border-dashed">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <div>
+                <h5 className="mb-1">Receipt</h5>
+                <small className="text-muted">
+                  <strong>Customer:</strong> {receiptCustomerName || '—'} ({receiptContact || '—'}) | 
+                  <strong> Created:</strong> {receiptCreatedAt || '—'}
+                </small>
+              </div>
+              {receiptStatus && <StatusBadge status={receiptStatus} />}
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-sm">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Status</th>
+                      <th>SKU</th>
+                      <th>Product</th>
+                      <th>Qty</th>
+                      <th>Price</th>
+                      <th>Subtotal</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receiptLines.map(line => (
+                      <tr key={`r-${line.orderId}`}>
+                        <td>{line.orderId}</td>
+                        <td><StatusBadge status={line.status} /></td>
+                        <td>{line.SKU}</td>
+                        <td>{line.prodName}</td>
+                        <td>{line.quantity}</td>
+                        <td>{currency}{line.unitPrice.toFixed(2)}</td>
+                        <td>{currency}{line.subtotal.toFixed(2)}</td>
+                        <td>
+                          {line.status === 'pending' && (
+                            <div className="btn-group btn-group-sm">
+                              <button className="btn btn-outline-secondary" onClick={() => editReceiptQuantity(line)}>Edit</button>
+                              <button className="btn btn-outline-danger" onClick={() => cancelReceiptLine(line)}>Cancel</button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="text-end"><strong>Grand Total: {currency}{receiptLines.reduce((sum, l) => sum + l.subtotal, 0).toFixed(2)}</strong></div>
+            </div>
+          </div>
         )}
-      </section>
-    </div>
+
+        {/* Order List with Filters */}
+        <div className="card">
+          <div className="card-header"><h5 className="mb-0">Order History</h5></div>
+          <div className="card-body">
+            <div className="row g-2 g-md-3 mb-3">
+              <div className="col-6 col-sm-4 col-md-2">
+                <label className="form-label">Status</label>
+                <select className="form-select form-select-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)}>
+                  <option value="all">All</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="shipped">Shipped</option>
+                </select>
+              </div>
+              <div className="col-6 col-sm-4 col-md-2">
+                <label className="form-label">Customer</label>
+                <input className="form-control form-control-sm" value={contactFilter} onChange={e => setContactFilter(e.target.value)} placeholder="Contact" />
+              </div>
+              <div className="col-6 col-sm-4 col-md-2">
+                <label className="form-label">Start</label>
+                <input className="form-control form-control-sm" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              </div>
+              <div className="col-6 col-sm-4 col-md-2">
+                <label className="form-label">End</label>
+                <input className="form-control form-control-sm" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              </div>
+              <div className="col-12 col-sm-8 col-md-4 d-flex align-items-end gap-2">
+                <button className="btn btn-primary btn-sm flex-grow-1 flex-md-grow-0" onClick={loadOrders}>Apply</button>
+                <button className="btn btn-outline-secondary btn-sm flex-grow-1 flex-md-grow-0" onClick={() => { setStatusFilter('all'); setContactFilter(''); setStartDate(''); setEndDate(''); setPreviousOnly(false); loadOrders() }}>Reset</button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="text-center py-4">
+                <div className="spinner-border text-primary" role="status"></div>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-hover">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Customer</th>
+                      <th>Status</th>
+                      <th>Qty</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.filter(o => {
+                      if (previousOnly && o.status === 'pending') return false
+                      if (statusFilter === 'all') return true
+                      return o.status === statusFilter
+                    }).map(o => (
+                      <tr key={o.order_id} onClick={() => fetchReceipt(o.order_id)} style={{ cursor: 'pointer' }}>
+                        <td>#{o.order_id}</td>
+                        <td>{o.person_contact ?? ''}</td>
+                        <td><StatusBadge status={o.status} /></td>
+                        <td>{o.order_quantity}</td>
+                        <td>
+                          <div className="btn-group btn-group-sm">
+                            <button className="btn btn-outline-info" onClick={(e) => { e.stopPropagation(); navigate(`/orders/${o.order_id}`) }}>View</button>
+                            {o.status === 'pending' && (
+                              <>
+                                <button className="btn btn-outline-secondary" onClick={(e) => { e.stopPropagation(); startEditOrder(o) }}>Edit</button>
+                                <button className="btn btn-success" onClick={(e) => { e.stopPropagation(); updateStatus(o, 'confirmed') }}>Confirm</button>
+                                <button className="btn btn-danger" onClick={(e) => { e.stopPropagation(); updateStatus(o, 'cancelled') }}>Cancel</button>
+                              </>
+                            )}
+                            {o.status === 'confirmed' && (
+                              <>
+                                <button className="btn btn-primary" onClick={(e) => { e.stopPropagation(); updateStatus(o, 'shipped') }}>Ship</button>
+                                <button className="btn btn-danger" onClick={(e) => { e.stopPropagation(); updateStatus(o, 'cancelled') }}>Cancel</button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Edit Order Modal */}
+        {editingOrder && (
+          <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={cancelEditOrder}>
+            <div className="modal-dialog" onClick={e => e.stopPropagation()}>
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Edit Order #{editingOrder.order_id}</h5>
+                  <button type="button" className="btn-close" onClick={cancelEditOrder}></button>
+                </div>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label">Customer</label>
+                    <input className="form-control" value={editingOrder.person_contact ?? ''} disabled />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Product</label>
+                    <input className="form-control" value={inventory.find(i => i.inventory_id === editingOrder.inventory_id)?.prod_name ?? ''} disabled />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Quantity</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={editOrderQty}
+                      min={1}
+                      max={inventory.find(i => i.inventory_id === editingOrder.inventory_id)?.units || 999}
+                      onChange={e => setEditOrderQty(Math.max(1, parseInt(e.target.value) || 1))}
+                    />
+                    <small className="text-muted">
+                      Available: {inventory.find(i => i.inventory_id === editingOrder.inventory_id)?.units ?? 'N/A'}
+                    </small>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-secondary" onClick={cancelEditOrder}>Cancel</button>
+                  <button className="btn btn-primary" onClick={saveOrderEdit}>Save Changes</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
   )
 }
 

@@ -91,6 +91,7 @@ class AuthController:
             "token_type": "bearer",
             "user_id": user.user_id if user else None,
             "person_id": person.person_id,
+            "person_name": person.person_name,
             "role": user.role if user else None,
             "store_id": user.store_id if user else None,
             "has_package": has_package
@@ -155,7 +156,8 @@ class AuthController:
 
     @staticmethod
     def create_staff(db: Session, data: CreateStaffRequest, creator_payload: dict) -> dict:
-        """Admin creates a staff user for their store using unique contact (phone)."""
+        """Admin creates a staff user for their store using unique contact (phone).
+        Existing contacts can be used if not registered to another store."""
         # Ensure caller is admin (route dependency already checks, but double-safety)
         if creator_payload.get("role") != "admin":
             from fastapi import HTTPException, status
@@ -166,20 +168,55 @@ class AuthController:
             from fastapi import HTTPException, status
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing store context")
 
-        # Uniqueness checks on contact and email
         from app.models.person import Person
-        existing_contact = db.query(Person).filter(Person.person_contact == data.person_contact).first()
-        if existing_contact:
-            from fastapi import HTTPException, status
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Person with this contact already exists")
+        from app.core.security import hash_password
+        
+        # Check if person with this contact already exists
+        existing_person = db.query(Person).filter(Person.person_contact == data.person_contact).first()
+        
+        if existing_person:
+            # Check if they already have a user record
+            existing_user = db.query(User).filter(User.person_id == existing_person.person_id).first()
+            
+            if existing_user:
+                # If registered to a different store, reject
+                if existing_user.store_id != store_id:
+                    from fastapi import HTTPException, status
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT, 
+                        detail="This contact is already registered to another store"
+                    )
+                # If already a user in this store, reject (already staff/admin)
+                from fastapi import HTTPException, status
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT, 
+                    detail="This contact is already a staff member in your store"
+                )
+            
+            # Person exists but has no user record - create staff user for them
+            user = User(
+                person_id=existing_person.person_id,
+                role="staff",
+                store_id=store_id,
+                is_active=True,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
 
+            return {
+                "message": "Existing contact added as staff successfully.",
+                "user_id": user.user_id,
+                "person_id": existing_person.person_id,
+            }
+        
+        # Check email uniqueness for new person
         existing_email = db.query(Person).filter(Person.person_email == data.person_email).first()
         if existing_email:
             from fastapi import HTTPException, status
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Person with this email already exists")
 
-        # Create person with provided password or default
-        from app.core.security import hash_password
+        # Create new person with provided password or default
         raw_pwd = data.password or "password"
         hashed_pwd = hash_password(raw_pwd)
         
@@ -194,7 +231,7 @@ class AuthController:
         db.commit()
         db.refresh(person)
 
-        # Create staff user (no password here, it's in person)
+        # Create staff user
         user = User(
             person_id=person.person_id,
             role="staff",

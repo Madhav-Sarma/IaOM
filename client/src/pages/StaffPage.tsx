@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import DashboardLayout from '../components/DashboardLayout'
 
 interface StaffMember {
   person_id: number
@@ -13,6 +15,7 @@ interface StaffMember {
 
 export default function StaffPage() {
   const { auth } = useAuth()
+  const navigate = useNavigate()
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,48 +48,75 @@ export default function StaffPage() {
   }
 
   if (auth.role !== 'admin') {
-    return <div className="container" style={{ padding: 16 }}>You must be an admin to view this page.</div>
+    return (
+      <DashboardLayout>
+        <div className="container-fluid py-4">
+          <div className="alert alert-warning">You must be an admin to view this page.</div>
+        </div>
+      </DashboardLayout>
+    )
   }
 
   return (
-    <div className="container" style={{ padding: 16 }}>
-      <h2>Staff Members</h2>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
-      {loading ? <div>Loading...</div> : (
-        <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Contact</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {staff.map(s => (
-              <tr key={s.person_id}>
-                <td>{s.person_id}</td>
-                <td>{s.person_name}</td>
-                <td>{s.person_contact}</td>
-                <td>{s.person_email}</td>
-                <td>{s.role}</td>
-                <td style={{ color: s.is_active ? 'green' : 'red' }}>
-                  {s.is_active ? 'Active' : 'Inactive'}
-                </td>
-                <td>
-                  {s.is_active && s.role === 'staff' && (
-                    <button onClick={() => deactivateStaff(s.person_contact)}>Deactivate</button>
-                  )}
-                  {!s.is_active && <span style={{ color: '#999' }}>Deactivated</span>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+    <DashboardLayout>
+      <div className="container-fluid py-4">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h3 className="fw-bold mb-0">Staff Members</h3>
+          <button className="btn btn-primary" onClick={() => navigate('/staff')}>
+            + Create Staff
+          </button>
+        </div>
+        {error && <div className="alert alert-danger">{error}</div>}
+        {loading ? (
+          <div className="text-center py-4">
+            <div className="spinner-border text-primary" role="status"></div>
+          </div>
+        ) : (
+          <div className="card">
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-hover">
+                  <thead className="table-light">
+                    <tr>
+                      <th>ID</th>
+                      <th>Name</th>
+                      <th>Contact</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staff.map(s => (
+                      <tr key={s.person_id}>
+                        <td>{s.person_id}</td>
+                        <td>{s.person_name}</td>
+                        <td>{s.person_contact}</td>
+                        <td>{s.person_email}</td>
+                        <td><span className="badge bg-secondary">{s.role}</span></td>
+                        <td>
+                          <span className={`badge ${s.is_active ? 'bg-success' : 'bg-danger'}`}>
+                            {s.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td>
+                          {s.is_active && s.role === 'staff' && (
+                            <button className="btn btn-sm btn-outline-danger" onClick={() => deactivateStaff(s.person_contact)}>
+                              Deactivate
+                            </button>
+                          )}
+                          {!s.is_active && <span className="text-muted">Deactivated</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
   )
 }

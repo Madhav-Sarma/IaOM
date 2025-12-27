@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import DashboardLayout from '../components/DashboardLayout'
 import type { Profile, ProfileUpdate } from '../types/profile'
 
 export default function ProfilePage() {
@@ -57,44 +58,52 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container" style={{ padding: 16 }}>
-      <h2>My Profile</h2>
-      {loading && <div>Loading...</div>}
-      {error && <div style={{ color: 'red' }}>{error}</div>}
-      {message && <div style={{ color: 'green' }}>{message}</div>}
+    <DashboardLayout>
+      <div className="container-fluid py-4">
+        <h3 className="fw-bold mb-4">My Profile</h3>
+        {loading && (
+          <div className="text-center py-4">
+            <div className="spinner-border text-primary" role="status"></div>
+          </div>
+        )}
+        {error && <div className="alert alert-danger">{error}</div>}
+        {message && <div className="alert alert-success">{message}</div>}
 
-      {profile && (
-        <div style={{ display: 'grid', gap: 12, maxWidth: 480 }}>
-          <label style={{ display:'flex', flexDirection:'column', gap:4 }}>
-            <span>Name</span>
-            <input value={form.person_name || ''} onChange={e => onChange('person_name', e.target.value)} />
-          </label>
+        {profile && (
+          <div className="card" style={{ maxWidth: 500 }}>
+            <div className="card-body">
+              <div className="mb-3">
+                <label className="form-label">Name</label>
+                <input className="form-control" value={form.person_name || ''} onChange={e => onChange('person_name', e.target.value)} />
+              </div>
 
-          <label style={{ display:'flex', flexDirection:'column', gap:4 }}>
-            <span>Email</span>
-            <input type="email" value={form.person_email || ''} onChange={e => onChange('person_email', e.target.value)} />
-          </label>
+              <div className="mb-3">
+                <label className="form-label">Email</label>
+                <input className="form-control" type="email" value={form.person_email || ''} onChange={e => onChange('person_email', e.target.value)} />
+              </div>
 
-          <label style={{ display:'flex', flexDirection:'column', gap:4 }}>
-            <span>Address</span>
-            <input value={form.person_address || ''} onChange={e => onChange('person_address', e.target.value)} />
-          </label>
+              <div className="mb-3">
+                <label className="form-label">Address</label>
+                <input className="form-control" value={form.person_address || ''} onChange={e => onChange('person_address', e.target.value)} />
+              </div>
 
-          <label style={{ display:'flex', flexDirection:'column', gap:4 }}>
-            <span>New Password (optional)</span>
-            <input type="password" value={form.password || ''} onChange={e => onChange('password', e.target.value)} />
-          </label>
+              <div className="mb-3">
+                <label className="form-label">New Password (optional)</label>
+                <input className="form-control" type="password" value={form.password || ''} onChange={e => onChange('password', e.target.value)} />
+              </div>
 
-          <div style={{ display:'flex', gap:12, alignItems:'center' }}>
-            <button onClick={save} disabled={saving} style={{ padding:'10px 14px' }}>
-              {saving ? 'Saving...' : 'Save Profile'}
-            </button>
-            <div style={{ color:'#666', fontSize:13 }}>
-              Contact (read-only): {profile.person_contact}
+              <div className="d-flex gap-3 align-items-center">
+                <button className="btn btn-primary" onClick={save} disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Profile'}
+                </button>
+                <small className="text-muted">
+                  Contact (read-only): {profile.person_contact}
+                </small>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </DashboardLayout>
   )
 }

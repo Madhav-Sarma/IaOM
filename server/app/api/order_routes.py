@@ -17,9 +17,13 @@ def create_order(
     payload: dict = Depends(get_token_payload),
 ):
     from app.models.person import Person
+    from app.models.inventory import Inventory
+    from app.models.product import Product
     order = OrderController.create(db, payload, data)
-    # Include person_contact in response for client convenience
+    # Include person_contact and unit_price in response for client convenience
     person = db.query(Person).filter(Person.person_id == order.person_id).first()
+    inv = db.query(Inventory).filter(Inventory.inventory_id == order.inventory_id).first()
+    product = db.query(Product).filter(Product.prod_id == inv.product_id).first() if inv else None
     return dict(
         order_id=order.order_id,
         status=order.status,
@@ -29,6 +33,7 @@ def create_order(
         created_by=order.created_by,
         created_at=order.created_at,
         person_contact=person.person_contact if person else None,
+        unit_price=float(product.unit_price) if product and product.unit_price else 0,
     )
 
 
@@ -67,6 +72,7 @@ def list_orders(
     from app.models.order import Order
     from app.models.inventory import Inventory
     from app.models.person import Person
+    from app.models.product import Product
     store_id = payload.get("store_id")
 
     query = (
@@ -79,9 +85,11 @@ def list_orders(
             Order.created_by,
             Order.created_at,
             Person.person_contact,
+            Product.unit_price,
         )
         .join(Inventory, Inventory.inventory_id == Order.inventory_id)
         .join(Person, Person.person_id == Order.person_id)
+        .join(Product, Product.prod_id == Inventory.product_id)
         .filter(Inventory.store_id == store_id)
     )
 
@@ -106,6 +114,7 @@ def list_orders(
             created_by=r.created_by,
             created_at=r.created_at,
             person_contact=r.person_contact,
+            unit_price=float(r.unit_price) if r.unit_price else 0,
         )
         for r in rows
     ]
@@ -204,7 +213,7 @@ def get_receipt(
     store_id = payload.get("store_id")
 
     base = (
-        db.query(Order, Person.person_contact)
+        db.query(Order, Person)
         .join(Person, Person.person_id == Order.person_id)
         .join(Inventory, Inventory.inventory_id == Order.inventory_id)
         .filter(Order.order_id == order_id, Inventory.store_id == store_id)
@@ -213,7 +222,7 @@ def get_receipt(
     if not base:
         return {"order_id": order_id, "person_contact": None, "lines": []}
 
-    base_order, person_contact = base
+    base_order, person = base
     window = timedelta(seconds=120)
     start = base_order.created_at - window
     end = base_order.created_at + window
@@ -258,7 +267,12 @@ def get_receipt(
 
     return {
         "order_id": order_id,
-        "person_contact": person_contact,
+        "person_id": person.person_id,
+        "person_name": person.person_name,
+        "person_contact": person.person_contact,
+        "person_email": person.person_email,
+        "person_address": person.person_address,
+        "created_at": base_order.created_at,
         "lines": lines,
         "grand_total": sum(l["subtotal"] for l in lines),
     }

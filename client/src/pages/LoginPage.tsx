@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import type { LoginRequest, LoginResponse } from '../types/auth'
@@ -17,10 +17,10 @@ export default function LoginPage() {
     setLoading(true); setError(null)
     try {
       const { data } = await api.post<LoginResponse>('/auth/login', form)
-      login(data.access_token, data.role || 'customer', data.user_id || 0, data.person_id, data.store_id || 0)
+      login(data.access_token, data.role || null, data.user_id || null, data.person_id, data.person_name, data.store_id || null, form.person_contact)
       // Route based on whether they have a package
       if (data.has_package) {
-        navigate('/customers')
+        navigate('/dashboard')
       } else {
         navigate('/buy')
       }
@@ -30,19 +30,42 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="panel">
-      <h2>Login (Staff/Admin)</h2>
-      {loading && <div className="status info">Logging in...</div>}
-      {error && (
-        <div className="status error">
-          <strong>Login Failed</strong>
-          <p>{error}</p>
+    <div className="container px-3 py-4 py-md-5" style={{ marginTop: '56px' }}>
+      <div className="row justify-content-center">
+        <div className="col-12 col-sm-10 col-md-6 col-lg-4">
+          <div className="card shadow">
+            <div className="card-body p-3 p-md-4">
+              <h3 className="card-title text-center mb-4">Login</h3>
+              
+              {loading && (
+                <div className="alert alert-info d-flex align-items-center">
+                  <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                  Logging in...
+                </div>
+              )}
+              {error && (
+                <div className="alert alert-danger">
+                  <strong>Login Failed</strong>
+                  <p className="mb-0">{error}</p>
+                </div>
+              )}
+              
+              <div className="mb-3">
+                <label className="form-label">Contact</label>
+                <input className="form-control" value={form.person_contact} onChange={(e)=>setForm({...form, person_contact:e.target.value})} placeholder="Enter your phone number" />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Password</label>
+                <input className="form-control" type="password" value={form.password} onChange={(e)=>setForm({...form, password:e.target.value})} placeholder="Enter your password" />
+              </div>
+              <button className="btn btn-primary w-100" onClick={submit} disabled={loading}>Login</button>
+              
+              <p className="text-center mt-3 mb-0">
+                Don't have an account? <Link to="/signup">Sign Up</Link>
+              </p>
+            </div>
+          </div>
         </div>
-      )}
-      <div className="form-grid">
-        <label>Contact<input value={form.person_contact} onChange={(e)=>setForm({...form, person_contact:e.target.value})} placeholder="Enter your phone number" /></label>
-        <label>Password<input type="password" value={form.password} onChange={(e)=>setForm({...form, password:e.target.value})} placeholder="Enter your password" /></label>
-        <div className="actions full"><button onClick={submit} disabled={loading}>Login</button></div>
       </div>
     </div>
   )

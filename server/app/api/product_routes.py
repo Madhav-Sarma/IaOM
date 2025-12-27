@@ -12,9 +12,9 @@ router = APIRouter()
 def create_product(
     data: ProductCreate,
     db: Session = Depends(get_db),
-    payload: dict = Depends(require_roles(["admin"]))
+    payload: dict = Depends(require_roles(["admin", "staff"]))
 ):
-    """Admin creates a new product."""
+    """Admin or staff creates a new product."""
     store_id = payload.get("store_id")
     if not store_id:
         raise HTTPException(
@@ -59,9 +59,9 @@ def update_product(
     prod_id: int,
     data: ProductUpdate,
     db: Session = Depends(get_db),
-    payload: dict = Depends(require_roles(["admin"]))
+    payload: dict = Depends(require_roles(["admin", "staff"]))
 ):
-    """Admin updates product details (name, category, description, price)."""
+    """Admin or staff updates product details (name, category, description, price)."""
     store_id = payload.get("store_id")
     if not store_id:
         raise HTTPException(

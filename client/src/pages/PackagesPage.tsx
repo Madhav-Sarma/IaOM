@@ -1,8 +1,5 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { api } from '../api/client'
-import type { BuyPackageResponse } from '../types/auth'
-import './PackagesPage.css'
 
 interface Package {
   id: number
@@ -29,67 +26,58 @@ const packages: Package[] = [
 
 export default function PackagesPage() {
   const navigate = useNavigate()
-  const { auth, login } = useAuth()
+  const { auth } = useAuth()
 
-  const handleBuyPackage = async (pkg: Package) => {
+  const handleBuyPackage = (pkg: Package) => {
     if (!auth.personId) {
-      alert('Person ID missing')
+      alert('Please log in first')
+      navigate('/login')
       return
     }
 
-    // Get contact from form or re-fetch from API
-    const contact = prompt('Enter your contact (phone) to confirm purchase:')
-    if (!contact) return
-
-    try {
-      const { data } = await api.post<BuyPackageResponse>('/auth/buy-package', {
-        person_contact: contact,
-        store_name: `Store - ${pkg.name}`,
-        store_address: 'Address to be updated'
-      }, {
-        headers: { Authorization: `Bearer ${auth.token}` }
-      })
-
-      // Update auth context with admin role
-      login(data.access_token, 'admin', data.user_id, auth.personId, data.store_id)
-      
-      alert(`Package purchased! Welcome, Admin. You can now manage customers and staff.`)
-      navigate('/customers')
-    } catch (err: any) {
-      alert(err?.response?.data?.detail || 'Purchase failed')
-    }
+    // Navigate to store setup page with package info
+    navigate('/store-setup', { state: { packageName: pkg.name, packageId: pkg.id } })
   }
 
   return (
-    <div className="packages-page">
-      <h2>Choose Your Package</h2>
-      <p className="subtitle">Upgrade your account to manage customers and staff</p>
+    <div className="container px-3 py-4 py-md-5" style={{ marginTop: '56px' }}>
+      <div className="text-center mb-4 mb-md-5">
+        <h2 className="fw-bold">Choose Your Package</h2>
+        <p className="text-muted">Upgrade your account to manage customers and staff</p>
+      </div>
       
-      <div className="packages-grid">
+      <div className="row justify-content-center g-4">
         {packages.map((pkg) => (
-          <div key={pkg.id} className="package-card">
-            <div className="package-header">
-              <h3>{pkg.name}</h3>
-              <div className="price">
-                <span className="amount">Rs.{pkg.cost}</span>
-                <span className="period">/month</span>
+          <div key={pkg.id} className="col-12 col-sm-10 col-md-6 col-lg-4">
+            <div className="card shadow h-100">
+              <div className="card-header text-center bg-primary text-white py-3">
+                <h4 className="mb-0">{pkg.name}</h4>
+              </div>
+              <div className="card-body d-flex flex-column p-3 p-md-4">
+                <div className="text-center mb-3">
+                  <span className="display-5 display-md-4 fw-bold">Rs.{pkg.cost}</span>
+                  <span className="text-muted">/month</span>
+                </div>
+                
+                <p className="text-muted">{pkg.description}</p>
+                
+                <ul className="list-unstyled flex-grow-1">
+                  {pkg.features.map((feature, idx) => (
+                    <li key={idx} className="mb-2">
+                      <span className="text-success me-2">✓</span>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                
+                <button 
+                  className="btn btn-primary btn-lg w-100 mt-3"
+                  onClick={() => handleBuyPackage(pkg)}
+                >
+                  {pkg.cost === 0 ? 'Get Free Pack' : `Buy Now - Rs.${pkg.cost}`}
+                </button>
               </div>
             </div>
-            
-            <p className="description">{pkg.description}</p>
-            
-            <ul className="features">
-              {pkg.features.map((feature, idx) => (
-                <li key={idx}>✓ {feature}</li>
-              ))}
-            </ul>
-            
-            <button 
-              className="buy-btn"
-              onClick={() => handleBuyPackage(pkg)}
-            >
-              {pkg.cost === 0 ? 'Get Free Pack' : `Buy Now - Rs.${pkg.cost}`}
-            </button>
           </div>
         ))}
       </div>

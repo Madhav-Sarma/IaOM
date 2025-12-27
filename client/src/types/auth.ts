@@ -23,6 +23,7 @@ export interface LoginResponse {
   token_type: string
   user_id: number | null
   person_id: number
+  person_name: string
   role: string | null
   store_id: number | null
   has_package: boolean

@@ -1,54 +1,146 @@
 import './App.css'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import { StoreProvider } from './context/StoreContext'
 import ProtectedRoute from './components/ProtectedRoute'
+import RoleProtectedRoute from './components/RoleProtectedRoute'
 import NavBar from './components/NavBar'
 import SignupPage from './pages/SignupPage'
 import LoginPage from './pages/LoginPage'
 import PackagesPage from './pages/PackagesPage'
+import AdminDashboard from './pages/AdminDashboard'
+import StaffDashboard from './pages/StaffDashboard'
 import ProductsPage from './pages/ProductsPage'
 import CustomersPage from './pages/CustomersPage'
 import CreateStaffPage from './pages/CreateStaffPage'
 import StaffPage from './pages/StaffPage'
 import OrdersPage from './pages/OrdersPage'
+import OrderDetailsPage from './pages/OrderDetailsPage'
 import StoreSettingsPage from './pages/StoreSettingsPage'
 import ProfilePage from './pages/ProfilePage'
 import CustomerDetailPage from './pages/CustomerDetailPage'
+import StoreSetupPage from './pages/StoreSetupPage'
+
+function DashboardRouter() {
+  const { auth } = useAuth()
+  
+  if (auth.role === 'admin') {
+    return <AdminDashboard />
+  }
+  return <StaffDashboard />
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* Public pages */}
+      <Route path="/" element={<Navigate to="/signup" replace />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* Protected: Auth required */}
+      <Route path="/buy" element={<ProtectedRoute><PackagesPage /></ProtectedRoute>} />
+      <Route path="/store-setup" element={<ProtectedRoute><StoreSetupPage /></ProtectedRoute>} />
+
+      {/* Protected: Role required (Admin & Staff) */}
+      <Route
+        path="/dashboard"
+        element={
+          <RoleProtectedRoute requiredRole="staff">
+            <DashboardRouter />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/products"
+        element={
+          <RoleProtectedRoute requiredRole="staff">
+            <ProductsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/customers"
+        element={
+          <RoleProtectedRoute requiredRole="staff">
+            <CustomersPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/customers/:contact"
+        element={
+          <RoleProtectedRoute requiredRole="staff">
+            <CustomerDetailPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/orders"
+        element={
+          <RoleProtectedRoute requiredRole="staff">
+            <OrdersPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/orders/:orderId"
+        element={
+          <RoleProtectedRoute requiredRole="staff">
+            <OrderDetailsPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <RoleProtectedRoute requiredRole="staff">
+            <ProfilePage />
+          </RoleProtectedRoute>
+        }
+      />
+
+      {/* Protected: Admin only */}
+      <Route
+        path="/staff"
+        element={
+          <RoleProtectedRoute requiredRole="admin">
+            <CreateStaffPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff-list"
+        element={
+          <RoleProtectedRoute requiredRole="admin">
+            <StaffPage />
+          </RoleProtectedRoute>
+        }
+      />
+      <Route
+        path="/store-settings"
+        element={
+          <RoleProtectedRoute requiredRole="admin">
+            <StoreSettingsPage />
+          </RoleProtectedRoute>
+        }
+      />
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
 
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <div className="page">
-          <header className="hero">
-            <div>
-              <p className="eyebrow">Inventory & Order Management</p>
-              <h1>Onboard stores, staff, and customers fast</h1>
-              <p className="lede">Sign up, choose a package, then manage products, staff and customers.</p>
-            </div>
-            <div className="chip">Backend: FastAPI · Frontend: React + TS</div>
-          </header>
-
+      <StoreProvider>
+        <BrowserRouter>
           <NavBar />
-
-          <section className="panel">
-            <Routes>
-              <Route path="/" element={<Navigate to="/signup" replace />} />
-              <Route path="/signup" element={<SignupPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/buy" element={<ProtectedRoute><PackagesPage /></ProtectedRoute>} />
-              <Route path="/products" element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
-              <Route path="/customers" element={<ProtectedRoute><CustomersPage /></ProtectedRoute>} />
-              <Route path="/customers/:contact" element={<ProtectedRoute><CustomerDetailPage /></ProtectedRoute>} />
-              <Route path="/staff" element={<ProtectedRoute><CreateStaffPage /></ProtectedRoute>} />
-              <Route path="/staff-list" element={<ProtectedRoute><StaffPage /></ProtectedRoute>} />
-              <Route path="/orders" element={<ProtectedRoute><OrdersPage /></ProtectedRoute>} />
-              <Route path="/store-settings" element={<ProtectedRoute><StoreSettingsPage /></ProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-            </Routes>
-          </section>
-        </div>
-      </BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </StoreProvider>
     </AuthProvider>
   )
 }

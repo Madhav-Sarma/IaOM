@@ -14,6 +14,30 @@ from app.schemas.customer import (
 router = APIRouter()
 
 
+@router.get("/check", response_model=CustomerExistsResponse, dependencies=[Depends(require_roles(["admin", "staff"]))])
+def check_customer(
+    contact: Optional[str] = Query(None),
+    email: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Check for existing customer by contact or email (staff/admin only)."""
+    person = None
+    if contact:
+        person = CustomerController.get_by_contact(db, contact)
+    elif email:
+        person = CustomerController.get_by_email(db, email)
+
+    if person:
+        return CustomerExistsResponse(
+            exists=True,
+            person_id=person.person_id,
+            person_name=person.person_name,
+            person_contact=person.person_contact,
+            person_email=person.person_email,
+        )
+    return CustomerExistsResponse(exists=False)
+
+
 @router.get("/{contact}", response_model=CustomerResponse, dependencies=[Depends(require_roles(["admin", "staff"]))])
 def get_customer(contact: str, db: Session = Depends(get_db)):
     """Get a single customer by contact (staff/admin only)."""
@@ -54,27 +78,3 @@ def update_customer(contact: str, data: CustomerUpdate, db: Session = Depends(ge
     if not person:
         raise HTTPException(status_code=404, detail="Customer not found")
     return person
-
-
-@router.get("/check", response_model=CustomerExistsResponse, dependencies=[Depends(require_roles(["admin", "staff"]))])
-def check_customer(
-    contact: Optional[str] = Query(None),
-    email: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-):
-    """Check for existing customer by contact or email (staff/admin only)."""
-    person = None
-    if contact:
-        person = CustomerController.get_by_contact(db, contact)
-    elif email:
-        person = CustomerController.get_by_email(db, email)
-
-    if person:
-        return CustomerExistsResponse(
-            exists=True,
-            person_id=person.person_id,
-            person_name=person.person_name,
-            person_contact=person.person_contact,
-            person_email=person.person_email,
-        )
-    return CustomerExistsResponse(exists=False)

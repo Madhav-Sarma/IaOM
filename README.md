@@ -23,10 +23,12 @@ A full-stack application for managing stores, products, inventory, staff, custom
 - **Profiles:** Staff/admin can view and edit their profile (name, email, address, password)
 
 ### Frontend
-- **Dashboard:** Responsive navigation with role-based menu links
+- **Dashboards:**
+  - **Admin Dashboard:** KPIs (active products, orders last 7 days, low-stock count, total sales), Orders & Sales trend chart
+  - **Staff Dashboard:** Recent orders table, top 5 selling products with chart
+- **Responsive Sidebar Navigation:** Role-based menu with active route highlighting
 - **Authentication Pages:** Sign up, login
 - **Products Page:** View store products and create new ones
-- **Inventory Page:** Manage product units per store
 - **Customers Page:** Create, edit, list customers; view individual customer details with past orders
 - **Customer Detail Page:** View customer profile and past orders; filter by status/date; view and edit receipts
 - **Orders Page:** Shopping cart checkout; view all orders; filter by status/date/customer; view grouped receipts; edit/cancel pending lines
@@ -131,20 +133,54 @@ Frontend will be available at `http://localhost:5173`
 
 ---
 
+## Authentication & Role-Based Access
+
+### Auth Flow
+1. **Sign up** → User created with no role
+2. **Login** → User authenticated with JWT token
+3. **Select Package** → User assigned admin/staff role via `/buy`
+4. **Access Dashboard** → Sidebar with role-based navigation
+
+### Role Hierarchy
+- **No Role:** Redirect to `/buy` (Packages page) to select a plan
+- **Staff:** Access products, customers, orders, profiles, dashboards
+- **Admin:** All staff permissions + staff management, store settings, advanced dashboards
+
+---
+
+## Dashboard Features
+
+### Admin Dashboard (`/dashboard`)
+Shows high-level store metrics and trends:
+- **KPI Cards:**
+  - Total active products
+  - Orders created in last 7 days
+  - Low-stock product count (< 10 units)
+  - Total sales amount in last 30 days
+- **Chart:** Orders & sales trend bar chart over 30 days
+
+### Staff Dashboard (`/dashboard`)
+Operational view for order fulfillment:
+- **Recent Orders Table:** Latest 10 orders with customer contact, status, and quantity
+- **Top 5 Products:** Best-selling items with quantities and chart visualization
+- **Quick Tips:** Best practices for inventory and order management
+
+---
+
 ## Usage
 
 ### Quick Start Workflow
 
 1. **Backend Running:** `http://localhost:8000`
 2. **Frontend Running:** `http://localhost:5173`
-3. **Sign Up:** Create an account (admin/staff/customer)
-4. **Buy Package:** Choose a store package (if admin)
-5. **Add Products:** Create products with SKU and unit price
-6. **Manage Inventory:** Set units available per store
-7. **Create Customers:** Add customer records
-8. **Create Orders:** Use shopping cart to create multi-product orders
-9. **Manage Orders:** View, filter, and edit orders; view receipts
-10. **Staff & Settings:** Manage staff and store-level settings (admin only)
+3. **Sign Up:** Create an account
+4. **Login:** Use credentials from sign up
+5. **Select Package:** Choose a plan (assigns admin/staff role)
+6. **View Dashboard:** Role-appropriate dashboard with KPIs
+7. **Add Products:** Create products with SKU and unit price
+8. **Create Customers:** Add customer records
+9. **Manage Orders:** Use shopping cart checkout for multi-product orders
+10. **Track Analytics:** Monitor dashboards, sales, and inventory
 
 ### API Endpoints (Summary)
 
@@ -175,6 +211,7 @@ Frontend will be available at `http://localhost:5173`
 - `GET /api/v1/orders/{order_id}/receipt` - Get grouped receipt (admin/staff)
 - `PUT /api/v1/orders/{order_id}` - Update order (admin/staff; inventory_id or order_quantity)
 - `PUT /api/v1/orders/{order_id}/status` - Update order status (admin/staff)
+
 
 **Store**
 - `GET /api/v1/store/settings` - Get store settings (admin/staff)

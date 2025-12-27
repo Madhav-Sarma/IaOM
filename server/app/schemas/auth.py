@@ -27,6 +27,7 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     user_id: Optional[int]
     person_id: int
+    person_name: str
     role: Optional[str]
     store_id: Optional[int]
     has_package: bool

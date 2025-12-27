@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api } from '../api/client'
+import DashboardLayout from '../components/DashboardLayout'
 import type { CreateStaffRequest, CreateStaffResponse } from '../types/auth'
 
 function authHeader() {
@@ -31,26 +32,59 @@ export default function CreateStaffPage() {
   }
 
   return (
-    <div className="panel">
-      <h2>Create Staff (Admin)</h2>
-      {loading && <div className="status info">Working...</div>}
-      {error && <div className="status error">{error}</div>}
-      <div className="form-grid">
-        <label>Full Name<input value={form.person_name} onChange={(e)=>setForm({...form, person_name:e.target.value})} /></label>
-        <label>Email<input value={form.person_email} onChange={(e)=>setForm({...form, person_email:e.target.value})} /></label>
-        <label>Contact (unique)<input value={form.person_contact} onChange={(e)=>setForm({...form, person_contact:e.target.value})} /></label>
-        <label className="full">Address<input value={form.person_address} onChange={(e)=>setForm({...form, person_address:e.target.value})} /></label>
-        <label className="full">Password (optional)<input value={form.password || ''} onChange={(e)=>setForm({...form, password:e.target.value})} /></label>
-        <div className="actions full"><button onClick={submit}>Create staff (requires admin login)</button></div>
-        {result && (
-          <div className="result full">
-            <h4>Staff created</h4>
-            <p>User ID: {result.user_id}</p>
-            <p>Person ID: {result.person_id}</p>
-            <p>Default password is "password" if not provided.</p>
+    <DashboardLayout>
+      <div className="container-fluid py-4">
+        <h3 className="fw-bold mb-4">Create Staff (Admin)</h3>
+        {loading && (
+          <div className="alert alert-info d-flex align-items-center">
+            <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+            Working...
           </div>
         )}
+        {error && <div className="alert alert-danger">{error}</div>}
+        
+        <div className="card" style={{ maxWidth: 600 }}>
+          <div className="card-body">
+            <div className="row g-3">
+              <div className="col-md-6">
+                <label className="form-label">Full Name</label>
+                <input className="form-control" value={form.person_name} onChange={(e)=>setForm({...form, person_name:e.target.value})} />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label">Email</label>
+                <input className="form-control" value={form.person_email} onChange={(e)=>setForm({...form, person_email:e.target.value})} />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label">Contact (unique)</label>
+                <input className="form-control" value={form.person_contact} onChange={(e)=>setForm({...form, person_contact:e.target.value})} />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label">Password (optional)</label>
+                <input className="form-control" value={form.password || ''} onChange={(e)=>setForm({...form, password:e.target.value})} />
+              </div>
+              <div className="col-12">
+                <label className="form-label">Address</label>
+                <input className="form-control" value={form.person_address} onChange={(e)=>setForm({...form, person_address:e.target.value})} />
+              </div>
+              <div className="col-12">
+                <button className="btn btn-primary" onClick={submit} disabled={loading}>
+                  Create Staff (requires admin login)
+                </button>
+              </div>
+            </div>
+            
+            {result && (
+              <div className="alert alert-success mt-3">
+                <h5 className="alert-heading">Staff created</h5>
+                <p className="mb-1">User ID: {result.user_id}</p>
+                <p className="mb-1">Person ID: {result.person_id}</p>
+                <hr />
+                <p className="mb-0">Default password is "password" if not provided.</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }

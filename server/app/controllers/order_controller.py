@@ -50,6 +50,13 @@ class OrderController:
         # Ensure inventory belongs to caller's store
         inv = OrderController._assert_inv_same_store(db, data.inventory_id, store_id)
 
+        # Check if sufficient inventory is available
+        if data.order_quantity > inv.units:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Insufficient inventory. Available: {inv.units}, Requested: {data.order_quantity}"
+            )
+
         # Find or create person by contact
         person = db.query(Person).filter(Person.person_contact == data.contact).first()
         if not person:
@@ -97,9 +104,23 @@ class OrderController:
 
         if data.inventory_id is not None:
             new_inv = OrderController._assert_inv_same_store(db, data.inventory_id, store_id)
+            # Check inventory level for the new inventory
+            qty_to_check = data.order_quantity if data.order_quantity is not None else order.order_quantity
+            if qty_to_check > new_inv.units:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Insufficient inventory. Available: {new_inv.units}, Requested: {qty_to_check}"
+                )
             order.inventory_id = new_inv.inventory_id
 
         if data.order_quantity is not None:
+            # If inventory_id wasn't changed, check against current inventory
+            if data.inventory_id is None:
+                if data.order_quantity > inv.units:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Insufficient inventory. Available: {inv.units}, Requested: {data.order_quantity}"
+                    )
             order.order_quantity = data.order_quantity
 
         db.commit()
