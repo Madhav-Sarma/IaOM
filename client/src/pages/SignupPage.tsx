@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../api/client'
+import Loader from '../components/Loader'
+import { useToast } from '../components/Toast'
 import type { SignupRequest, SignupResponse } from '../types/auth'
 
 const initial: SignupRequest = { person_name: '', person_email: '', person_contact: '', person_address: '', password: '' }
@@ -10,15 +12,18 @@ export default function SignupPage() {
   const [form, setForm] = useState<SignupRequest>(initial)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { addToast } = useToast()
 
   const submit = async () => {
     setLoading(true); setError(null)
     try {
       await api.post<SignupResponse>('/auth/signup', form)
-      // Auto-redirect to login after 1.5 seconds
+      addToast('success', 'Account created! Redirecting to login...')
       setTimeout(() => navigate('/login'), 1500)
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Signup failed')
+      const msg = err?.response?.data?.detail || 'Signup failed'
+      setError(msg)
+      addToast('error', msg)
       setLoading(false)
     }
   }
@@ -31,12 +36,7 @@ export default function SignupPage() {
             <div className="card-body p-3 p-md-4">
               <h3 className="card-title text-center mb-4">Sign Up</h3>
               
-              {loading && (
-                <div className="alert alert-success d-flex align-items-center">
-                  <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-                  Account created! Redirecting to login...
-                </div>
-              )}
+              {loading && <Loader message="Creating account..." />}
               {error && <div className="alert alert-danger">{error}</div>}
               
               {!loading && (

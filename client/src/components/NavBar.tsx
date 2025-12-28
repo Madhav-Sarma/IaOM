@@ -14,7 +14,7 @@ export default function NavBar() {
   }
 
   return (
-    <nav className="navbar navbar-expand-md navbar-dark bg-dark px-3 px-md-4 fixed-top" style={{ zIndex: 1030 }}>
+    <nav className="navbar navbar-expand-md navbar-dark navbar-glass px-3 px-md-4 fixed-top" style={{ zIndex: 1030 }}>
       <Link to={isAuthenticated && auth.role ? '/dashboard' : '/'} className="navbar-brand fw-bold" style={{ marginLeft: auth.role ? '50px' : '0' }}>
         IaOM
       </Link>
@@ -36,15 +36,15 @@ export default function NavBar() {
           {!isAuthenticated ? (
             <>
               <Link to="/signup" className="btn btn-outline-light btn-sm w-100 w-md-auto" onClick={() => setIsMenuOpen(false)}>Signup</Link>
-              <Link to="/login" className="btn btn-primary btn-sm w-100 w-md-auto" onClick={() => setIsMenuOpen(false)}>Login</Link>
+              <Link to="/login" className="btn btn-light btn-sm w-100 w-md-auto" onClick={() => setIsMenuOpen(false)}>Login</Link>
             </>
           ) : (
             <>
               {!auth.role && <Link to="/buy" className="btn btn-outline-light btn-sm" onClick={() => setIsMenuOpen(false)}>View Packages</Link>}
               {auth.role && (
-                <span className="badge bg-info text-dark">{auth.role === 'admin' ? 'Admin' : 'Staff'}</span>
+                <span className="badge rounded-pill bg-info text-dark">{auth.role === 'admin' ? 'Admin' : 'Staff'}</span>
               )}
-              <span className="badge bg-secondary d-none d-sm-inline">ID:{auth.userId || auth.personId}</span>
+              <span className="badge rounded-pill bg-secondary d-none d-sm-inline">ID:{auth.userId || auth.personId}</span>
               <button onClick={handleLogout} className="btn btn-outline-danger btn-sm">Logout</button>
             </>
           )}

@@ -25,6 +25,7 @@ export interface OrderResponse {
   person_contact?: string
   created_at?: string
   unit_price?: number
+  prod_name?: string
 }
 
 export interface InventoryItem {

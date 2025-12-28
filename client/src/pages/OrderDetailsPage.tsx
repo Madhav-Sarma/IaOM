@@ -142,10 +142,10 @@ export default function OrderDetailsPage() {
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
-            <button className="btn btn-outline-secondary me-3" onClick={() => navigate('/orders')}>
+            <button className="btn btn-outline-secondary me-3 text-white" onClick={() => navigate('/orders')}>
               ← Back to Orders
             </button>
-            <span className="h4 fw-bold mb-0">Order #{orderId}</span>
+            <span className="h4 fw-bold mb-0">Receipt #{orderId}</span>
           </div>
           {order && <StatusBadge status={order.status} />}
         </div>
@@ -168,7 +168,7 @@ export default function OrderDetailsPage() {
                 </div>
                 <div className="card-body">
                   <dl className="row mb-0">
-                    <dt className="col-sm-5">Order ID</dt>
+                    <dt className="col-sm-5">Receipt No.</dt>
                     <dd className="col-sm-7 fw-bold">#{order.order_id}</dd>
 
                     <dt className="col-sm-5">Status</dt>
@@ -286,10 +286,10 @@ export default function OrderDetailsPage() {
                 </div>
                 <div className="card-body">
                   <div className="table-responsive">
-                    <table className="table table-hover">
+                    <table className="table table-interactive">
                       <thead className="table-light">
                         <tr>
-                          <th>Order ID</th>
+                          <th>Receipt No.</th>
                           <th>Status</th>
                           <th>SKU</th>
                           <th>Product</th>

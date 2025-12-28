@@ -1,3 +1,4 @@
+
 .nav{display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid #ddd;background:#fff}
 .nav .brand{font-weight:600}
 .nav .links{display:flex;gap:12px;align-items:center}

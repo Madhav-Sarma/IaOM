@@ -1,7 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import DashboardLayout from '../components/DashboardLayout'
+import PageHeader from '../components/PageHeader'
+import Loader from '../components/Loader'
+import EmptyState from '../components/EmptyState'
+import { useToast } from '../components/Toast'
+import { FiUsers } from 'react-icons/fi'
 import type { CustomerCreate, CustomerUpdate, CustomerResponse, CustomerExistsResponse } from '../types/customer'
 
 function authHeader() {
@@ -25,6 +30,13 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingCustomer, setEditingCustomer] = useState<CustomerResponse | null>(null)
+  const { addToast } = useToast()
+  const [search, setSearch] = useState('')
+  const [pageSize, setPageSize] = useState(10)
+  const [page, setPage] = useState(1)
+  const [sortField, setSortField] = useState<keyof CustomerResponse | null>(null)
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
 
   // Load customers on mount
   useEffect(() => {
@@ -37,19 +49,29 @@ export default function CustomersPage() {
       const { data } = await api.post<CustomerResponse>('/customers', createForm, { headers: authHeader() })
       setCreated(data)
       setCreateForm({ person_name:'', person_contact:'', person_email:'', person_address:'' })
-      // Refresh list
+      addToast('success', 'Customer created successfully')
       listCustomers()
-    } catch (err:any) { setError(err?.response?.data?.detail || 'Create failed') } finally { setLoading(false) }
+      switchView('list')
+    } catch (err:any) { 
+      const msg = err?.response?.data?.detail || 'Create failed'
+      setError(msg)
+      addToast('error', msg)
+    } finally { setLoading(false) }
   }
   const updateCustomer = async () => {
-    if (!editContact) { setError('Provide contact to edit'); return }
+    if (!editContact) { addToast('warning', 'Provide contact to edit'); return }
     setLoading(true); setError(null)
     try {
       const { data } = await api.put<CustomerResponse>(`/customers/${encodeURIComponent(editContact)}`, updateForm, { headers: authHeader() })
       setUpdated(data)
-      // Refresh list
+      addToast('success', 'Customer updated successfully')
       listCustomers()
-    } catch (err:any) { setError(err?.response?.data?.detail || 'Update failed') } finally { setLoading(false) }
+      switchView('list')
+    } catch (err:any) { 
+      const msg = err?.response?.data?.detail || 'Update failed'
+      setError(msg)
+      addToast('error', msg)
+    } finally { setLoading(false) }
   }
   const listCustomers = async () => {
     setLoading(true); setError(null)
@@ -90,69 +112,164 @@ export default function CustomersPage() {
     setActiveView('edit')
   }
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return list
+    return list.filter(c => 
+      c.person_name.toLowerCase().includes(q) ||
+      c.person_contact.toLowerCase().includes(q) ||
+      (c.person_email || '').toLowerCase().includes(q)
+    )
+  }, [list, search])
+
+  const sorted = useMemo(() => {
+    if (!sortField) return filtered
+    return [...filtered].sort((a, b) => {
+      const aVal = a[sortField]
+      const bVal = b[sortField]
+      if (aVal === bVal) return 0
+      const comparison = aVal > bVal ? 1 : -1
+      return sortOrder === 'asc' ? comparison : -comparison
+    })
+  }, [filtered, sortField, sortOrder])
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize))
+  const pageItems = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return sorted.slice(start, start + pageSize)
+  }, [sorted, page, pageSize])
+
+  useEffect(() => {
+    setPage(1)
+  }, [search, pageSize])
+
+  const handleSort = (field: keyof CustomerResponse) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortOrder('asc')
+    }
+  }
+
+  // const toggleRowSelect = (id: number) => {
+  //   const newSelected = new Set(selectedRows)
+  //   if (newSelected.has(id)) {
+  //     newSelected.delete(id)
+  //   } else {
+  //     newSelected.add(id)
+  //   }
+  //   setSelectedRows(newSelected)
+  // }
+
+  // const toggleAllRows = () => {
+  //   if (selectedRows.size === pageItems.length) {
+  //     setSelectedRows(new Set())
+  //   } else {
+  //     setSelectedRows(new Set(pageItems.map(c => c.person_id)))
+  //   }
+  // }
+
   return (
     <DashboardLayout>
       <div className="container-fluid py-4">
-        <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-          <h3 className="fw-bold mb-0">Customers</h3>
-          
-          {/* Action Buttons */}
-          <div className="btn-group flex-wrap" role="group">
-            <button 
-              className={`btn ${activeView === 'list' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => switchView('list')}
-            >
-              <i className="bi bi-list-ul me-1"></i> Customer List
-            </button>
-            <button 
-              className={`btn ${activeView === 'create' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => switchView('create')}
-            >
-              <i className="bi bi-plus-circle me-1"></i> Create Customer
-            </button>
-            <button 
-              className={`btn ${activeView === 'check' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => switchView('check')}
-            >
-              <i className="bi bi-search me-1"></i> Check Exists
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          title="Customers"
+          subtitle="Manage customer information and contacts"
+          actions={
+            <div className="flex-wrap" role="group">
+              <button 
+                className={`btn btn-sm text-white me-1  ${activeView === 'list' ? 'btn-primary' : 'btn-outline-primary'}`}
+                onClick={() => switchView('list')}
+              >
+                Customer List
+              </button>
+              <button 
+                className={`btn btn-sm text-white me-1 ${activeView === 'create' ? 'btn-primary' : 'btn-outline-primary'}`}
+                onClick={() => switchView('create')}
+              >
+                + Create
+              </button>
+              <button 
+                className={`btn btn-sm text-white ${activeView === 'check' ? 'btn-primary' : 'btn-outline-primary'}`}
+                onClick={() => switchView('check')}
+              >
+                Check Exists
+              </button>
+            </div>
+          }
+        />
 
-        {loading && (
-          <div className="alert alert-info d-flex align-items-center">
-            <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-            Working...
-          </div>
-        )}
+        {loading && <Loader message="Loading customers..." />}
         {error && <div className="alert alert-danger">{error}</div>}
 
         {/* Customer List View */}
         {activeView === 'list' && (
-          <div className="card">
-            <div className="card-header d-flex justify-content-between align-items-center">
-              <h5 className="mb-0">Customer List</h5>
-              <button className="btn btn-outline-primary btn-sm" onClick={listCustomers}>
-                <i className="bi bi-arrow-clockwise me-1"></i> Refresh
-              </button>
-            </div>
-            <div className="table-responsive">
-              <table className="table table-hover mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Contact</th>
-                    <th>Email</th>
-                    <th>Address</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {list.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center text-muted py-4">No customers found</td></tr>
-                  ) : list.map(c => (
-                    <tr key={c.person_id}>
+          <>
+            {list.length === 0 ? (
+              <EmptyState
+                title="No customers yet"
+                description="Create a customer to get started"
+                icon={<FiUsers />}
+                action={<button className="btn btn-primary " onClick={() => switchView('create')}>Create Customer</button>}
+              />
+            ) : (
+              <div className="card">
+                <div className="card-body">
+                  <div className="row g-2 align-items-center mb-3">
+                    <div className="col-12 col-md-6">
+                      <input
+                        type="search"
+                        className="form-control"
+                        placeholder="Search by name, contact, or email"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="col-6 col-md-3">
+                      <select
+                        className="form-select"
+                        value={pageSize}
+                        onChange={(e) => setPageSize(parseInt(e.target.value, 10))}
+                      >
+                        <option value={10}>10 per page</option>
+                        <option value={20}>20 per page</option>
+                        <option value={50}>50 per page</option>
+                      </select>
+                    </div>
+                    <div className="col-6 col-md-3 text-end">
+                      <button className="btn btn-outline-primary btn-sm text-white" onClick={listCustomers}>
+                        Refresh
+                      </button>
+                    </div>
+                  </div>
+                  {selectedRows.size > 0 && (
+                    <div className="alert alert-info py-2 mb-0 d-flex align-items-center justify-content-between">
+                      <span><strong>{selectedRows.size}</strong> customer{selectedRows.size > 1 ? 's' : ''} selected</span>
+                      <button className="btn btn-sm btn-outline-secondary" onClick={() => setSelectedRows(new Set())}>Clear Selection</button>
+                    </div>
+                  )}
+                </div>
+                <div className="table-responsive">
+                  <table className="table table-interactive mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th className={`sortable-header ${sortField === 'person_id' ? `sorted-${sortOrder}` : ''}`} onClick={() => handleSort('person_id')}>ID</th>
+                        <th className={`sortable-header ${sortField === 'person_name' ? `sorted-${sortOrder}` : ''}`} onClick={() => handleSort('person_name')}>Name</th>
+                        <th className={`sortable-header ${sortField === 'person_contact' ? `sorted-${sortOrder}` : ''}`} onClick={() => handleSort('person_contact')}>Contact</th>
+                        <th className={`sortable-header ${sortField === 'person_email' ? `sorted-${sortOrder}` : ''}`} onClick={() => handleSort('person_email')}>Email</th>
+                        <th>Address</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageItems.length === 0 ? (
+                        <tr><td colSpan={6} className="text-center text-muted py-4">No customers match your search</td></tr>
+                      ) : pageItems.map(c => (
+                    <tr 
+                      key={c.person_id}
+                      className={selectedRows.has(c.person_id) ? 'selected' : ''}
+                    >
                       <td>{c.person_id}</td>
                       <td>{c.person_name}</td>
                       <td>{c.person_contact}</td>
@@ -160,9 +277,9 @@ export default function CustomersPage() {
                       <td>{c.person_address}</td>
                       <td>
                         <div className="btn-group btn-group-sm">
-                          <Link to={`/customers/${encodeURIComponent(c.person_contact)}`} className="btn btn-outline-secondary">View</Link>
+                          <Link to={`/customers/${encodeURIComponent(c.person_contact)}`} className="btn btn-outline-secondary table-action-btn">View</Link>
                           <button 
-                            className="btn btn-outline-primary"
+                            className="btn btn-outline-primary table-action-btn text-white"
                             onClick={() => startEditCustomer(c)}
                           >
                             Edit
@@ -170,11 +287,26 @@ export default function CustomersPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="card-body">
+                  <nav aria-label="Customers pagination">
+                    <ul className="pagination pagination-sm mb-0 justify-content-end">
+                      <li className={`page-item ${page === 1 ? 'disabled' : ''}`}>
+                        <button className="page-link" onClick={() => setPage(Math.max(1, page - 1))}>«</button>
+                      </li>
+                      <li className="page-item disabled"><span className="page-link">Page {page} of {totalPages}</span></li>
+                      <li className={`page-item ${page >= totalPages ? 'disabled' : ''}`}>
+                        <button className="page-link" onClick={() => setPage(Math.min(totalPages, page + 1))}>»</button>
+                      </li>
+                    </ul>
+                  </nav>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Create Customer View */}
@@ -205,7 +337,7 @@ export default function CustomersPage() {
                   <button className="btn btn-primary" onClick={createCustomer} disabled={loading}>
                     Create Customer
                   </button>
-                  <button className="btn btn-outline-secondary ms-2" onClick={() => switchView('list')}>
+                  <button className="btn btn-outline-secondary ms-2 text-white" onClick={() => switchView('list')}>
                     Cancel
                   </button>
                 </div>

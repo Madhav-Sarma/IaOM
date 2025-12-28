@@ -1,0 +1,309 @@
+/* Theme overrides for a visually stunning Bootstrap UI */
+:root {
+  --brand-gradient: linear-gradient(135deg, #7c3aed 0%, #4f46e5 50%, #06b6d4 100%);
+  --sidebar-gradient: linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(2,6,23,0.95) 100%);
+  --card-shadow: 0 10px 30px rgba(31,38,135,0.15);
+  --glow: 0 0 12px rgba(99,102,241,0.35);
+}
+
+/* Navbar with subtle glass and gradient */
+.navbar-glass {
+  background: var(--brand-gradient);
+  backdrop-filter: saturate(160%) blur(6px);
+  box-shadow: 0 6px 20px rgba(2, 6, 23, 0.25);
+}
+
+.navbar-glass .navbar-brand {
+  color: #fff !important;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+.navbar-glass .btn,
+.navbar-glass .badge {
+  box-shadow: var(--glow);
+}
+
+/* Sidebar styling */
+.sidebar-glass {
+  background: var(--sidebar-gradient);
+  backdrop-filter: saturate(160%) blur(6px);
+  border-right: 1px solid rgba(148,163,184,0.15);
+}
+
+.sidebar-glass .nav-link {
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  border-radius: 10px;
+}
+
+.sidebar-glass .nav-link:hover {
+  color: #fff !important;
+  transform: translateX(2px);
+  background: rgba(99,102,241,0.18);
+}
+
+.sidebar-glass .nav-link.bg-primary {
+  background: linear-gradient(90deg, rgba(59,130,246,0.35) 0%, rgba(99,102,241,0.5) 100%) !important;
+  box-shadow: 0 6px 16px rgba(59,130,246,0.25);
+}
+
+/* Metric cards */
+.card-raise {
+  transition: transform 0.2s ease, box-shadow 0.25s ease;
+}
+
+.card-raise:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-shadow);
+}
+
+.card-gradient-primary {
+  border-image: linear-gradient(180deg, #60a5fa, #818cf8) 1;
+  border-left: 4px solid transparent;
+}
+.card-gradient-success {
+  border-image: linear-gradient(180deg, #34d399, #10b981) 1;
+  border-left: 4px solid transparent;
+}
+.card-gradient-warning {
+  border-image: linear-gradient(180deg, #fbbf24, #f59e0b) 1;
+  border-left: 4px solid transparent;
+}
+.card-gradient-danger {
+  border-image: linear-gradient(180deg, #f87171, #ef4444) 1;
+  border-left: 4px solid transparent;
+}
+
+/* Badges */
+.badge.rounded-pill {
+  letter-spacing: 0.2px;
+  padding: 0.35rem 0.55rem;
+}
+
+/* Dashboard content */
+.dashboard-content {
+  padding: 24px;
+}
+
+@media (min-width: 992px) {
+  .dashboard-content {
+    padding: 32px;
+  }
+}
+
+/* Interactive Table Styles */
+.table-interactive {
+  --table-hover-bg: rgba(99, 102, 241, 0.08);
+}
+
+.table-interactive thead th {
+  background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #dee2e6;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.table-interactive tbody tr {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.table-interactive tbody tr:hover {
+  background: var(--table-hover-bg) !important;
+  transform: scale(1.005);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
+}
+
+.table-interactive tbody tr:active {
+  transform: scale(0.995);
+}
+
+.table-interactive tbody tr.selected {
+  background: rgba(99, 102, 241, 0.15) !important;
+  border-left: 3px solid #6366f1;
+}
+
+/* Sortable table headers */
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 1.5rem !important;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sortable-header:hover {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+}
+
+.sortable-header::after {
+  content: '⇅';
+  position: absolute;
+  right: 0.5rem;
+  opacity: 0.4;
+  font-size: 0.85rem;
+  transition: opacity 0.2s ease;
+}
+
+.sortable-header:hover::after {
+  opacity: 0.8;
+}
+
+.sortable-header.sorted-asc::after {
+  content: '↑';
+  opacity: 1;
+  color: #4f46e5;
+}
+
+.sortable-header.sorted-desc::after {
+  content: '↓';
+  opacity: 1;
+  color: #4f46e5;
+}
+
+/* Interactive cards */
+.card-interactive {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  position: relative;
+}
+
+.card-interactive:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 12px 24px rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.card-interactive:active {
+  transform: translateY(-4px) scale(1.005);
+}
+
+.card-interactive::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), transparent);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.card-interactive:hover::before {
+  opacity: 1;
+}
+
+/* Clickable metric cards */
+[style*="cursor: pointer"] .card {
+  transition: all 0.25s ease;
+}
+
+[style*="cursor: pointer"]:hover .card {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2);
+}
+
+[style*="cursor: pointer"]:active .card {
+  transform: translateY(-2px);
+}
+
+/* Table row selection checkbox */
+.row-select-checkbox {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+  accent-color: #6366f1;
+  transition: transform 0.15s ease;
+}
+
+.row-select-checkbox:hover {
+  transform: scale(1.15);
+}
+
+/* Animated table loading */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.table-loading {
+  background: linear-gradient(
+    90deg,
+    rgba(240, 240, 240, 0) 0%,
+    rgba(240, 240, 240, 0.5) 50%,
+    rgba(240, 240, 240, 0) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Table action buttons */
+.table-action-btn {
+  transition: all 0.2s ease;
+  border-radius: 6px;
+}
+
+.table-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.table-action-btn:active {
+  transform: translateY(0);
+}
+
+/* Enhanced button interactions */
+.btn {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+}
+
+/* Form input focus states */
+.form-control:focus,
+.form-select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 0.25rem rgba(99, 102, 241, 0.25);
+}
+
+/* Badge enhancements */
+.badge {
+  transition: all 0.2s ease;
+}
+
+.badge:hover {
+  transform: scale(1.05);
+}
+
+/* Card body padding responsive */
+.card-body {
+  transition: padding 0.2s ease;
+}

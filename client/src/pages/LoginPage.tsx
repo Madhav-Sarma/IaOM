@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import Loader from '../components/Loader'
+import { useToast } from '../components/Toast'
 import type { LoginRequest, LoginResponse } from '../types/auth'
 
 const initial: LoginRequest = { person_contact: '', password: '' }
@@ -12,20 +14,23 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const { login } = useAuth()
   const navigate = useNavigate()
+  const { addToast } = useToast()
 
   const submit = async () => {
     setLoading(true); setError(null)
     try {
       const { data } = await api.post<LoginResponse>('/auth/login', form)
       login(data.access_token, data.role || null, data.user_id || null, data.person_id, data.person_name, data.store_id || null, form.person_contact)
-      // Route based on whether they have a package
+      addToast('success', 'Login successful!')
       if (data.has_package) {
         navigate('/dashboard')
       } else {
         navigate('/buy')
       }
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Login failed')
+      const msg = err?.response?.data?.detail || 'Login failed'
+      setError(msg)
+      addToast('error', msg)
     } finally { setLoading(false) }
   }
 
@@ -37,12 +42,7 @@ export default function LoginPage() {
             <div className="card-body p-3 p-md-4">
               <h3 className="card-title text-center mb-4">Login</h3>
               
-              {loading && (
-                <div className="alert alert-info d-flex align-items-center">
-                  <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-                  Logging in...
-                </div>
-              )}
+              {loading && <Loader message="Logging in..." />}
               {error && (
                 <div className="alert alert-danger">
                   <strong>Login Failed</strong>

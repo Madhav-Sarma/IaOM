@@ -25,16 +25,19 @@ export default function MetricCard({
   const colors = colorMap[color]
 
   return (
-    <div className={`card ${colors.bg} border-start border-4 ${colors.border}`}>
+    <div className={`card card-interactive ${colors.bg} card-raise ${
+      color === 'primary' ? 'card-gradient-primary' :
+      color === 'success' ? 'card-gradient-success' :
+      color === 'warning' ? 'card-gradient-warning' :
+      'card-gradient-danger'
+    }`}>
       <div className="card-body">
-        <div className="d-flex justify-content-between align-items-start">
-          <div>
-            <p className="text-muted small mb-1">{title}</p>
-            <h3 className={`fw-bold mb-1 ${colors.text}`}>{value}</h3>
-            {subtitle && <p className="text-muted small mb-0">{subtitle}</p>}
-          </div>
-          {icon && <div className={`fs-3 ${colors.text}`}>{icon}</div>}
+        <div className="d-flex justify-content-between align-items-start mb-2">
+          <p className="text-muted small mb-0">{title}</p>
+          {icon && <div className={`fs-4 ${colors.text}`}>{icon}</div>}
         </div>
+        <h2 className={`h1 fw-bold mb-2 ${colors.text}`}>{value}</h2>
+        {subtitle && <p className="text-muted small mb-0">{subtitle}</p>}
       </div>
     </div>
   )

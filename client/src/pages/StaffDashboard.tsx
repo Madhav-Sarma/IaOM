@@ -1,8 +1,11 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useStore } from '../context/StoreContext'
 import DashboardLayout from '../components/DashboardLayout'
+import PageHeader from '../components/PageHeader'
+import Loader from '../components/Loader'
 import StatusBadge from '../components/StatusBadge'
 import {
   BarChart,
@@ -40,6 +43,7 @@ interface ChartDataPoint {
 export default function StaffDashboard() {
   const { auth } = useAuth()
   const { currency } = useStore()
+  const navigate = useNavigate()
   const authHeader = useMemo(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token])
 
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
@@ -141,11 +145,10 @@ export default function StaffDashboard() {
   return (
     <DashboardLayout>
       <div className="container-fluid py-4">
-        {/* Header */}
-        <div className="mb-4">
-          <h1 className="h3 fw-bold">Staff Dashboard</h1>
-          <p className="text-muted">Manage orders and track top-selling products.</p>
-        </div>
+        <PageHeader 
+          title="Staff Dashboard" 
+          subtitle="Manage orders and track top-selling products"
+        />
 
         {/* Error Message */}
         {error && (
@@ -155,30 +158,24 @@ export default function StaffDashboard() {
         )}
 
         {/* Loading State */}
-        {loading && (
-          <div className="text-center py-5">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <p className="text-muted mt-2">Loading dashboard...</p>
-          </div>
-        )}
+        {loading && <Loader message="Loading dashboard data..." />}
 
         {!loading && (
           <>
             {/* Recent Orders */}
             <div className="card mb-4">
               <div className="card-body">
-                <div className="d-flex align-items-center gap-2 mb-4">
+                <div className="d-flex align-items-center gap-2 mb-3">
                   <FiClock size={24} className="text-primary" />
                   <h5 className="card-title mb-0">Recent Orders</h5>
                 </div>
+                <p className="text-muted small mb-4">Click any row to view order details</p>
 
                 {recentOrders.length === 0 ? (
                   <p className="text-muted text-center py-4">No orders found</p>
                 ) : (
                   <div className="table-responsive">
-                    <table className="table table-hover">
+                    <table className="table table-interactive">
                       <thead className="table-light">
                         <tr>
                           <th>Order ID</th>
@@ -190,7 +187,7 @@ export default function StaffDashboard() {
                       </thead>
                       <tbody>
                         {recentOrders.map((order) => (
-                          <tr key={order.order_id}>
+                          <tr key={order.order_id} onClick={() => navigate(`/orders/${order.order_id}`)}>
                             <td className="fw-medium">#{order.order_id}</td>
                             <td>{order.person_contact}</td>
                             <td><StatusBadge status={order.status} /></td>
@@ -208,10 +205,11 @@ export default function StaffDashboard() {
             {/* Top Selling Products */}
             <div className="card mb-4">
               <div className="card-body">
-                <div className="d-flex align-items-center gap-2 mb-4">
+                <div className="d-flex align-items-center gap-2 mb-3">
                   <FiTrendingUp size={24} className="text-success" />
                   <h5 className="card-title mb-0">Top 5 Selling Products (Last 30 Days)</h5>
                 </div>
+                <p className="text-muted small mb-4">Click rows to view all products</p>
 
                 {topProducts.length === 0 ? (
                   <p className="text-muted text-center py-4">No sales data available</p>
@@ -220,7 +218,7 @@ export default function StaffDashboard() {
                     {/* Table */}
                     <div className="col-lg-6 mb-4 mb-lg-0">
                       <div className="table-responsive">
-                        <table className="table table-hover">
+                        <table className="table table-interactive">
                           <thead className="table-light">
                             <tr>
                               <th>SKU</th>
@@ -231,7 +229,7 @@ export default function StaffDashboard() {
                           </thead>
                           <tbody>
                             {topProducts.map((product) => (
-                              <tr key={product.SKU}>
+                              <tr key={product.SKU} onClick={() => navigate('/products')}>
                                 <td className="fw-medium">{product.SKU}</td>
                                 <td>{product.prod_name}</td>
                                 <td className="text-end">

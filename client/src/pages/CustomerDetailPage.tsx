@@ -18,6 +18,18 @@ interface ReceiptLine {
   subtotal: number
 }
 
+interface GroupedReceipt {
+  receiptNo: string
+  anchorOrderId: number
+  contact: string
+  date: string
+  orderIds: number[]
+  totalQty: number
+  status: OrderStatus
+  created_at: string
+  created_by: number
+}
+
 export default function CustomerDetailPage() {
   const { contact = '' } = useParams<{ contact: string }>()
   const { auth } = useAuth()
@@ -37,6 +49,103 @@ export default function CustomerDetailPage() {
   const [receiptCreatedAt, setReceiptCreatedAt] = useState<string>('')
   const [receiptStatus, setReceiptStatus] = useState<OrderStatus | null>(null)
   const [activeReceiptOrderId, setActiveReceiptOrderId] = useState<number | null>(null)
+
+  // Edit receipt state
+  const [editingReceipt, setEditingReceipt] = useState<GroupedReceipt | null>(null)
+  const [editReceiptOrders, setEditReceiptOrders] = useState<OrderResponse[]>([])
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(10)
+
+  const deriveGroupStatus = (statuses: OrderStatus[]): OrderStatus => {
+    if (statuses.every(s => s === 'cancelled')) return 'cancelled'
+    if (statuses.some(s => s === 'pending')) return 'pending'
+    if (statuses.some(s => s === 'confirmed')) return 'confirmed'
+    return 'shipped'
+  }
+
+  const filteredOrders = useMemo(() => {
+    const start = startDate ? new Date(startDate) : null
+    const end = endDate ? (() => { const d = new Date(endDate); d.setHours(23,59,59,999); return d })() : null
+
+    return orders.filter(order => {
+      if (statusFilter !== 'all' && order.status !== statusFilter) return false
+      const created = order.created_at ? new Date(order.created_at) : null
+      if (start && (!created || created < start)) return false
+      if (end && (!created || created > end)) return false
+      return true
+    })
+  }, [orders, statusFilter, startDate, endDate])
+
+  // Group orders into receipts by contact + creator within a 2-minute window (mirrors backend receipt window)
+  const groupedReceipts = useMemo(() => {
+    type InternalGroup = GroupedReceipt & { lineStatuses: OrderStatus[] }
+
+    const sorted = [...filteredOrders].sort((a, b) => {
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0
+      if (bTime !== aTime) return bTime - aTime
+      return (b.order_id || 0) - (a.order_id || 0)
+    })
+
+    const windowMs = 120_000
+    const groups: InternalGroup[] = []
+
+    for (const order of sorted) {
+      const createdAt = order.created_at || ''
+      const contactValue = order.person_contact || ''
+      const createdBy = order.created_by
+      const last = groups[groups.length - 1]
+      const lastTime = last ? new Date(last.created_at).getTime() : null
+      const currentTime = createdAt ? new Date(createdAt).getTime() : null
+      const withinWindow = lastTime !== null && currentTime !== null && Math.abs(currentTime - lastTime) <= windowMs
+      const sameContact = last ? contactValue === last.contact : false
+      const sameCreator = last ? createdBy === last.created_by : false
+
+      if (last && withinWindow && sameContact && sameCreator) {
+        last.orderIds.push(order.order_id)
+        last.totalQty += order.order_quantity || 0
+        last.lineStatuses.push(order.status)
+        last.status = deriveGroupStatus(last.lineStatuses)
+        continue
+      }
+
+      groups.push({
+        receiptNo: '',
+        anchorOrderId: order.order_id,
+        contact: contactValue,
+        date: createdAt ? new Date(createdAt).toLocaleDateString() : '',
+        orderIds: [order.order_id],
+        totalQty: order.order_quantity || 0,
+        status: order.status,
+        created_at: createdAt,
+        created_by: createdBy,
+        lineStatuses: [order.status],
+      })
+    }
+
+    return groups.map((g) => ({
+      receiptNo: `R-${g.anchorOrderId}`,
+      anchorOrderId: g.anchorOrderId,
+      contact: g.contact,
+      date: g.date,
+      orderIds: g.orderIds,
+      totalQty: g.totalQty,
+      status: deriveGroupStatus(g.lineStatuses),
+      created_at: g.created_at,
+      created_by: g.created_by,
+    }))
+  }, [filteredOrders])
+
+  const paginatedReceipts = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return groupedReceipts.slice(start, start + pageSize)
+  }, [groupedReceipts, page, pageSize])
+
+  const totalPages = Math.max(1, Math.ceil(groupedReceipts.length / pageSize))
+
+  useEffect(() => {
+    setPage(1)
+  }, [statusFilter, startDate, endDate, groupedReceipts.length])
 
   useEffect(() => {
     if (!contact) return
@@ -78,9 +187,9 @@ export default function CustomerDetailPage() {
     } finally { setLoading(false) }
   }
 
-  const fetchReceipt = async (orderId: number) => {
+  const fetchReceipt = async (anchorOrderId: number) => {
     try {
-      const { data } = await api.get(`/orders/${orderId}/receipt`, { headers: authHeader })
+      const { data } = await api.get(`/orders/${anchorOrderId}/receipt`, { headers: authHeader })
       const lines: ReceiptLine[] = (data.lines || []).map((l: any) => ({
         orderId: l.order_id,
         status: l.status as OrderStatus,
@@ -93,8 +202,8 @@ export default function CustomerDetailPage() {
       }))
       setReceiptLines(lines)
       setReceiptContact(data.person_contact ?? contact)
-      setActiveReceiptOrderId(orderId)
-      const created = (data.lines?.[0]?.created_at) ? new Date(data.lines[0].created_at).toLocaleString() : ''
+      setActiveReceiptOrderId(anchorOrderId)
+      const created = data.created_at ? new Date(data.created_at).toLocaleString() : ''
       setReceiptCreatedAt(created)
       setReceiptStatus(lines[0]?.status ?? null)
     } catch (e: any) {
@@ -108,7 +217,7 @@ export default function CustomerDetailPage() {
     const nq = Number(n)
     if (Number.isNaN(nq) || nq < 1) return alert('Invalid quantity')
     try {
-      await api.put(`/orders/${line.orderId}`, { order_quantity: nq }, { headers: authHeader })
+      await api.put(`/orders/${String(line.orderId)}`, { order_quantity: nq }, { headers: authHeader })
       if (activeReceiptOrderId) await fetchReceipt(activeReceiptOrderId)
     } catch (e: any) {
       alert(e?.response?.data?.detail || 'Failed to update quantity')
@@ -117,7 +226,7 @@ export default function CustomerDetailPage() {
 
   const cancelReceiptLine = async (line: ReceiptLine) => {
     try {
-      await api.put(`/orders/${line.orderId}/status`, { status: 'cancelled' }, { headers: authHeader })
+      await api.put(`/orders/${String(line.orderId)}/status`, { status: 'cancelled' }, { headers: authHeader })
       if (activeReceiptOrderId) await fetchReceipt(activeReceiptOrderId)
     } catch (e: any) {
       alert(e?.response?.data?.detail || 'Failed to cancel')
@@ -130,6 +239,64 @@ export default function CustomerDetailPage() {
       setOrders(orders.map(x => x.order_id === o.order_id ? data : x))
     } catch (e: any) {
       alert(e?.response?.data?.detail || 'Failed to change status')
+    }
+  }
+
+  // Edit receipt functions
+  const startEditReceipt = (receipt: GroupedReceipt) => {
+    const receiptOrders = orders.filter(o => receipt.orderIds.includes(o.order_id))
+    setEditingReceipt(receipt)
+    setEditReceiptOrders(receiptOrders)
+  }
+
+  const cancelEditReceipt = () => {
+    setEditingReceipt(null)
+    setEditReceiptOrders([])
+  }
+
+  const updateReceiptOrderQty = (orderId: number, newQty: number) => {
+    setEditReceiptOrders(editReceiptOrders.map(o =>
+      o.order_id === orderId ? { ...o, order_quantity: newQty } : o
+    ))
+  }
+
+  const deleteReceiptOrder = (orderId: number) => {
+    setEditReceiptOrders(editReceiptOrders.filter(o => o.order_id !== orderId))
+  }
+
+  const saveReceiptEdit = async () => {
+    if (!editingReceipt || editReceiptOrders.length === 0) {
+      alert('Receipt must have at least one product')
+      return
+    }
+
+    try {
+      // Update quantities for remaining orders
+      for (const order of editReceiptOrders) {
+        if (order.order_quantity !== orders.find(o => o.order_id === order.order_id)?.order_quantity) {
+          const { data } = await api.put<OrderResponse>(
+            `/orders/${order.order_id}`,
+            { order_quantity: order.order_quantity },
+            { headers: authHeader }
+          )
+          setOrders(orders.map(x => x.order_id === order.order_id ? data : x))
+        }
+      }
+
+      // Delete orders that were removed
+      const orderIdsToKeep = new Set(editReceiptOrders.map(o => o.order_id))
+      const ordersToDelete = orders.filter(o => editingReceipt.orderIds.includes(o.order_id) && !orderIdsToKeep.has(o.order_id))
+      for (const order of ordersToDelete) {
+        await api.delete(`/orders/${order.order_id}`, { headers: authHeader })
+        setOrders(orders.filter(x => x.order_id !== order.order_id))
+      }
+
+      alert('Receipt updated successfully')
+      setEditingReceipt(null)
+      setEditReceiptOrders([])
+      await loadOrders()
+    } catch (e: any) {
+      alert(e?.response?.data?.detail || 'Failed to update receipt')
     }
   }
 
@@ -184,8 +351,8 @@ export default function CustomerDetailPage() {
                 <input className="form-control form-control-sm" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
               </div>
               <div className="col-md-3 d-flex align-items-end gap-2">
-                <button className="btn btn-primary btn-sm" onClick={loadOrders}>Apply</button>
-                <button className="btn btn-outline-secondary btn-sm" onClick={() => { setStatusFilter('all'); setStartDate(''); setEndDate(''); loadOrders() }}>Reset</button>
+                <button className="btn btn-primary btn-sm text-white" onClick={loadOrders}>Apply</button>
+                <button className="btn btn-primary btn-sm text-white" onClick={() => { setStatusFilter('all'); setStartDate(''); setEndDate(''); setTimeout(() => loadOrders(), 0) }}>Reset</button>
               </div>
             </div>
 
@@ -193,35 +360,38 @@ export default function CustomerDetailPage() {
               <div className="text-center py-4">
                 <div className="spinner-border text-primary" role="status"></div>
               </div>
-            ) : (
+            ) : (<div>
               <div className="table-responsive">
-                <table className="table table-hover">
+                <table className="table table-interactive">
                   <thead className="table-light">
                     <tr>
-                      <th>Order ID</th>
+                      <th>Receipt No.</th>
+                      <th>Date</th>
                       <th>Status</th>
-                      <th>Qty</th>
+                      <th>Total Qty</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.map(o => (
-                      <tr key={o.order_id} onClick={() => fetchReceipt(o.order_id)} style={{ cursor: 'pointer' }}>
-                        <td>#{o.order_id}</td>
-                        <td><StatusBadge status={o.status} /></td>
-                        <td>{o.order_quantity}</td>
+                    {paginatedReceipts.map(receipt => (
+                      <tr key={receipt.receiptNo} onClick={() => fetchReceipt(receipt.anchorOrderId)} style={{ cursor: 'pointer' }}>
+                        <td className="fw-medium">{receipt.receiptNo}</td>
+                        <td>{receipt.date}</td>
+                        <td><StatusBadge status={receipt.status} /></td>
+                        <td>{receipt.totalQty}</td>
                         <td>
                           <div className="btn-group btn-group-sm">
-                            {o.status === 'pending' && (
+                            {receipt.status === 'pending' && (
                               <>
-                                <button className="btn btn-success" onClick={(e) => { e.stopPropagation(); updateStatus(o, 'confirmed') }}>Confirm</button>
-                                <button className="btn btn-danger" onClick={(e) => { e.stopPropagation(); updateStatus(o, 'cancelled') }}>Cancel</button>
+                                <button className="btn btn-outline-secondary text-white" onClick={(e) => { e.stopPropagation(); startEditReceipt(receipt) }}>Edit</button>
+                                <button className="btn btn-success" onClick={(e) => { e.stopPropagation(); receipt.orderIds.forEach(orderId => { const order = orders.find(o => o.order_id === orderId); if (order) updateStatus(order, 'confirmed') }) }}>Confirm</button>
+                                <button className="btn btn-danger" onClick={(e) => { e.stopPropagation(); receipt.orderIds.forEach(orderId => { const order = orders.find(o => o.order_id === orderId); if (order) updateStatus(order, 'cancelled') }) }}>Cancel</button>
                               </>
                             )}
-                            {o.status === 'confirmed' && (
+                            {receipt.status === 'confirmed' && (
                               <>
-                                <button className="btn btn-primary" onClick={(e) => { e.stopPropagation(); updateStatus(o, 'shipped') }}>Ship</button>
-                                <button className="btn btn-danger" onClick={(e) => { e.stopPropagation(); updateStatus(o, 'cancelled') }}>Cancel</button>
+                                <button className="btn btn-primary" onClick={(e) => { e.stopPropagation(); receipt.orderIds.forEach(orderId => { const order = orders.find(o => o.order_id === orderId); if (order) updateStatus(order, 'shipped') }) }}>Ship</button>
+                                <button className="btn btn-danger" onClick={(e) => { e.stopPropagation(); receipt.orderIds.forEach(orderId => { const order = orders.find(o => o.order_id === orderId); if (order) updateStatus(order, 'cancelled') }) }}>Cancel</button>
                               </>
                             )}
                           </div>
@@ -231,6 +401,15 @@ export default function CustomerDetailPage() {
                   </tbody>
                 </table>
               </div>
+              <div className="d-flex justify-content-between align-items-center mt-2 flex-wrap gap-2">
+                <small className="text-muted">Showing {paginatedReceipts.length} of {groupedReceipts.length} receipts</small>
+                <div className="btn-group">
+                  <button className="btn btn-outline-secondary btn-sm" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Prev</button>
+                  <span className="btn btn-outline-secondary btn-sm disabled">Page {page} / {totalPages}</span>
+                  <button className="btn btn-outline-secondary btn-sm" disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next</button>
+                </div>
+              </div>
+              </div>  
             )}
           </div>
         </div>
@@ -247,10 +426,10 @@ export default function CustomerDetailPage() {
             </div>
             <div className="card-body">
               <div className="table-responsive">
-                <table className="table table-sm">
+                <table className="table table-interactive table-sm">
                   <thead className="table-light">
                     <tr>
-                      <th>Order ID</th>
+                      <th>Receipt No.</th>
                       <th>Status</th>
                       <th>SKU</th>
                       <th>Product</th>
@@ -273,7 +452,7 @@ export default function CustomerDetailPage() {
                         <td>
                           {line.status === 'pending' && (
                             <div className="btn-group btn-group-sm">
-                              <button className="btn btn-outline-secondary" onClick={() => editReceiptQuantity(line)}>Edit</button>
+                              <button className="btn btn-outline-secondary text-white" onClick={() => editReceiptQuantity(line)}>Edit</button>
                               <button className="btn btn-outline-danger" onClick={() => cancelReceiptLine(line)}>Cancel</button>
                             </div>
                           )}
@@ -284,6 +463,73 @@ export default function CustomerDetailPage() {
                 </table>
               </div>
               <div className="text-end"><strong>Grand Total: {receiptLines.reduce((sum, l) => sum + l.subtotal, 0).toFixed(2)}</strong></div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Receipt Modal */}
+        {editingReceipt && (
+          <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={cancelEditReceipt}>
+            <div className="modal-dialog modal-lg" onClick={e => e.stopPropagation()}>
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Edit Receipt {editingReceipt.receiptNo}</h5>
+                  <button type="button" className="btn-close" onClick={cancelEditReceipt}></button>
+                </div>
+                <div className="modal-body" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Customer</label>
+                    <p className="form-control-plaintext">{editingReceipt.contact}</p>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Date</label>
+                    <p className="form-control-plaintext">{editingReceipt.date}</p>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Products</label>
+                    <table className="table table-sm table-bordered">
+                      <thead className="table-light">
+                        <tr>
+                          <th>Product</th>
+                          <th style={{ width: '120px' }}>Quantity</th>
+                          <th style={{ width: '80px' }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {editReceiptOrders.map(order => (
+                          <tr key={order.order_id}>
+                            <td>{order.prod_name || 'Unknown'}</td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="form-control form-control-sm"
+                                  value={order.order_quantity}
+                                  min={1}
+                                  onChange={e => updateReceiptOrderQty(order.order_id, Math.max(1, parseInt(e.target.value) || 1))}
+                                />
+                              </td>
+                              <td>
+                                <button
+                                  className="btn btn-danger btn-sm w-100"
+                                  onClick={() => deleteReceiptOrder(order.order_id)}
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {editReceiptOrders.length === 0 && (
+                      <div className="alert alert-warning mb-0">No products in receipt</div>
+                    )}
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-secondary" onClick={cancelEditReceipt}>Cancel</button>
+                  <button className="btn btn-primary" onClick={saveReceiptEdit} disabled={editReceiptOrders.length === 0}>Save Changes</button>
+                </div>
+              </div>
             </div>
           </div>
         )}

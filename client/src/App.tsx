@@ -2,6 +2,7 @@ import './App.css'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { StoreProvider } from './context/StoreContext'
+import { ToastProvider } from './components/Toast'
 import ProtectedRoute from './components/ProtectedRoute'
 import RoleProtectedRoute from './components/RoleProtectedRoute'
 import NavBar from './components/NavBar'
@@ -136,10 +137,12 @@ export default function App() {
   return (
     <AuthProvider>
       <StoreProvider>
-        <BrowserRouter>
-          <NavBar />
-          <AppRoutes />
-        </BrowserRouter>
+        <ToastProvider>
+          <BrowserRouter>
+            <NavBar />
+            <AppRoutes />
+          </BrowserRouter>
+        </ToastProvider>
       </StoreProvider>
     </AuthProvider>
   )

@@ -75,7 +75,7 @@ export default function StaffPage() {
           <div className="card">
             <div className="card-body">
               <div className="table-responsive">
-                <table className="table table-hover">
+                <table className="table table-interactive">
                   <thead className="table-light">
                     <tr>
                       <th>ID</th>

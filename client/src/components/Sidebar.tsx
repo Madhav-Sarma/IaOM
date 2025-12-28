@@ -84,7 +84,7 @@ export default function Sidebar() {
 
       {/* Sidebar */}
       <aside
-        className={`bg-dark text-white position-fixed start-0 d-flex flex-column transition-all ${isOpen ? 'translate-0' : 'd-none d-lg-flex'}`}
+        className={`sidebar-glass text-white position-fixed start-0 d-flex flex-column transition-all ${isOpen ? 'translate-0' : 'd-none d-lg-flex'}`}
         style={{ width: '260px', zIndex: 1045, top: '56px', height: 'calc(100vh - 56px)' }}
       >
         <div className="p-3 border-bottom border-secondary">
@@ -99,7 +99,7 @@ export default function Sidebar() {
                 <li key={item.href} className="nav-item">
                   <Link
                     to={item.href}
-                    className={`nav-link d-flex align-items-center gap-2 rounded ${
+                    className={`nav-link d-flex align-items-center gap-2 ${
                       isActive(item.href) ? 'bg-primary text-white' : 'text-white-50'
                     }`}
                     onClick={() => setIsOpen(false)}
@@ -123,7 +123,7 @@ export default function Sidebar() {
                     <li key={item.href} className="nav-item">
                       <Link
                         to={item.href}
-                        className={`nav-link d-flex align-items-center gap-2 rounded ${
+                        className={`nav-link d-flex align-items-center gap-2 ${
                           isActive(item.href) ? 'bg-primary text-white' : 'text-white-50'
                         }`}
                         onClick={() => setIsOpen(false)}

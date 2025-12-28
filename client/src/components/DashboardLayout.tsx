@@ -13,8 +13,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="d-flex flex-grow-1">
         <Sidebar />
         {/* marginLeft: 260px on large screens, 0 on mobile where sidebar is hidden */}
-        <main className="flex-grow-1 dashboard-main" style={{ paddingTop: '56px' }}>
-          {children}
+        <main className="flex-grow-1 dashboard-main" style={{ paddingTop: '25px' }}>
+          <div className="container-fluid dashboard-content">
+            {children}
+          </div>
         </main>
       </div>
       <style>{`

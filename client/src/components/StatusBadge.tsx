@@ -14,7 +14,7 @@ const statusConfig: Record<StatusType, { bg: string; label: string }> = {
 export default function StatusBadge({ status }: StatusBadgeProps) {
   const config = statusConfig[status] || statusConfig.pending
   return (
-    <span className={`badge ${config.bg}`}>
+    <span className={`badge rounded-pill ${config.bg}`}>
       {config.label}
     </span>
   )
