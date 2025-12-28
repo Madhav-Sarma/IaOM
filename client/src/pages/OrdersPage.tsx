@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { useAuth } from '../context/AuthContext'
-import { useStore } from '../context/StoreContext'
+import { useAppSelector } from '../store/hooks'
+import type { RootState } from '../store/store'
 import DashboardLayout from '../components/DashboardLayout'
 import PageHeader from '../components/PageHeader'
 import Loader from '../components/Loader'
@@ -46,8 +46,8 @@ interface GroupedReceipt {
 }
 
 export default function OrdersPage() {
-  const { auth } = useAuth()
-  const { currency } = useStore()
+  const token = useAppSelector((state: RootState) => state.auth.token)
+  const currency = useAppSelector((state: RootState) => state.store.currency)
   const navigate = useNavigate()
   const [orders, setOrders] = useState<OrderResponse[]>([])
   const [inventory, setInventory] = useState<InventoryItem[]>([])
@@ -189,7 +189,7 @@ export default function OrdersPage() {
     setPage(1)
   }, [statusFilter, contactFilter, startDate, endDate, groupedReceipts.length])
 
-  const authHeader = useMemo(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token])
+  const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
 
   useEffect(() => {
     loadInventory()
@@ -748,7 +748,7 @@ export default function OrdersPage() {
                 <input className="form-control form-control-sm" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
               </div>
               <div className="col-12 col-sm-8 col-md-4 d-flex align-items-end gap-2">
-                <button className="btn btn-primary btn-sm flex-grow-1 flex-md-grow-0" onClick={loadOrders}>Apply</button>
+                {/* <button className="btn btn-primary btn-sm flex-grow-1 flex-md-grow-0" onClick={loadOrders}>Apply</button> */}
                 <button className="btn btn-outline-secondary btn-sm flex-grow-1 flex-md-grow-0 text-white" onClick={() => { 
                   setStatusFilter('all'); 
                   setContactFilter(''); 

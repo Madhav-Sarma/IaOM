@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
-import { useAuth } from '../context/AuthContext'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
+import { logout } from '../store/authSlice'
+import type { RootState } from '../store/store'
 import DashboardLayout from '../components/DashboardLayout'
 import type { Profile, ProfileUpdate } from '../types/profile'
 
 export default function ProfilePage() {
-  const { auth, logout } = useAuth()
+  const dispatch = useAppDispatch()
+  const token = useAppSelector((state: RootState) => state.auth.token)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [form, setForm] = useState<ProfileUpdate>({})
   const [loading, setLoading] = useState(false)
@@ -13,7 +16,7 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string>('')
 
-  const authHeader = useMemo(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token])
+  const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
 
   useEffect(() => {
     load()
@@ -31,7 +34,7 @@ export default function ProfilePage() {
       })
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to load profile')
-      if (e?.response?.status === 401) logout()
+      if (e?.response?.status === 401) dispatch(logout())
     } finally {
       setLoading(false)
     }
@@ -51,7 +54,7 @@ export default function ProfilePage() {
       setMessage('Profile updated')
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to update profile')
-      if (e?.response?.status === 401) logout()
+      if (e?.response?.status === 401) dispatch(logout())
     } finally {
       setSaving(false)
     }

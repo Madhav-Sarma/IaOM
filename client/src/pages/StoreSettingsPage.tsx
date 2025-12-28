@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
-import { useAuth } from '../context/AuthContext'
+import { useAppSelector, useAppDispatch } from '../store/hooks'
+import { setSettings as setStoreSettings } from '../store/storeSlice'
+import type { RootState } from '../store/store'
 import DashboardLayout from '../components/DashboardLayout'
 import type { StoreSettings } from '../types/store'
 
 export default function StoreSettingsPage() {
-  const { auth } = useAuth()
-  const isAdmin = auth.role === 'admin'
+  const dispatch = useAppDispatch()
+  const token = useAppSelector((state: RootState) => state.auth.token)
+  const role = useAppSelector((state: RootState) => state.auth.role)
+  const isAdmin = role === 'admin'
   const [settings, setSettings] = useState<StoreSettings | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string>('')
 
-  const authHeader = useMemo(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token])
+  const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
 
   useEffect(() => {
     load()
@@ -24,6 +28,7 @@ export default function StoreSettingsPage() {
     try {
       const { data } = await api.get<StoreSettings>('/store/settings', { headers: authHeader })
       setSettings(data)
+      dispatch(setStoreSettings(data))
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Failed to load settings')
     } finally {

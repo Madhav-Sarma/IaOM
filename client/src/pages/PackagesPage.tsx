@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAppSelector, useAppDispatch } from '../store/hooks'
+import { logout } from '../store/authSlice'
+import type { RootState } from '../store/store'
 
 interface Package {
   id: number
@@ -26,10 +28,12 @@ const packages: Package[] = [
 
 export default function PackagesPage() {
   const navigate = useNavigate()
-  const { auth } = useAuth()
+  const dispatch = useAppDispatch()
+  const personId = useAppSelector((state: RootState) => state.auth.personId)
+  const isAuthenticated = useAppSelector((state: RootState) => state.auth.isAuthenticated)
 
   const handleBuyPackage = (pkg: Package) => {
-    if (!auth.personId) {
+    if (!personId) {
       alert('Please log in first')
       navigate('/login')
       return
@@ -39,10 +43,25 @@ export default function PackagesPage() {
     navigate('/store-setup', { state: { packageName: pkg.name, packageId: pkg.id } })
   }
 
+  const handleLogout = () => {
+    dispatch(logout())
+    navigate('/login')
+  }
+
   return (
     <div className="container px-3 py-4 py-md-5" style={{ marginTop: '56px' }}>
       <div className="text-center mb-4 mb-md-5">
-        <h2 className="fw-bold">Choose Your Package</h2>
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h2 className="fw-bold mb-0">Choose Your Package</h2>
+          {isAuthenticated && (
+            <button 
+              className="btn btn-outline-danger"
+              onClick={handleLogout}
+            >
+              Logout
+            </button>
+          )}
+        </div>
         <p className="text-muted">Upgrade your account to manage customers and staff</p>
       </div>
       

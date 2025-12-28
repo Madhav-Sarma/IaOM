@@ -1,8 +1,9 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { useAuth } from '../context/AuthContext'
-import { useStore } from '../context/StoreContext'
+import { useAppSelector, useAppDispatch } from '../store/hooks'
+import { setSettings } from '../store/storeSlice'
+import type { RootState } from '../store/store'
 import DashboardLayout from '../components/DashboardLayout'
 import PageHeader from '../components/PageHeader'
 import Loader from '../components/Loader'
@@ -41,10 +42,11 @@ interface ChartDataPoint {
 }
 
 export default function StaffDashboard() {
-  const { auth } = useAuth()
-  const { currency } = useStore()
+  const dispatch = useAppDispatch()
+  const token = useAppSelector((state: RootState) => state.auth.token)
+  const currency = useAppSelector((state: RootState) => state.store.currency)
   const navigate = useNavigate()
-  const authHeader = useMemo(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token])
+  const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
 
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
   const [topProducts, setTopProducts] = useState<TopProduct[]>([])
@@ -60,6 +62,14 @@ export default function StaffDashboard() {
     setLoading(true)
     setError(null)
     try {
+      // Load store settings (including currency)
+      try {
+        const settingsRes = await api.get('/store/settings', { headers: authHeader })
+        dispatch(setSettings(settingsRes.data))
+      } catch (err) {
+        console.error('Failed to load store settings:', err)
+      }
+
       // Fetch all orders (recent ones)
       const ordersRes = await api.get('/orders', {
         headers: authHeader,

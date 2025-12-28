@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { useAuth } from '../context/AuthContext'
-import { useStore } from '../context/StoreContext'
+import { useAppSelector } from '../store/hooks'
+import type { RootState } from '../store/store'
 import DashboardLayout from '../components/DashboardLayout'
 import StatusBadge from '../components/StatusBadge'
 import type { OrderStatus } from '../types/order'
@@ -38,9 +38,9 @@ interface ReceiptLine {
 export default function OrderDetailsPage() {
   const { orderId } = useParams<{ orderId: string }>()
   const navigate = useNavigate()
-  const { auth } = useAuth()
-  const { currency } = useStore()
-  const authHeader = useMemo(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token])
+  const token = useAppSelector((state: RootState) => state.auth.token)
+  const currency = useAppSelector((state: RootState) => state.store.currency)
+  const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
 
   const [order, setOrder] = useState<OrderDetail | null>(null)
   const [receiptLines, setReceiptLines] = useState<ReceiptLine[]>([])

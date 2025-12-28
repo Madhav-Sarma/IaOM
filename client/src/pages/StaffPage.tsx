@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { useAuth } from '../context/AuthContext'
+import { useAppSelector } from '../store/hooks'
+import type { RootState } from '../store/store'
 import DashboardLayout from '../components/DashboardLayout'
 
 interface StaffMember {
@@ -14,13 +15,12 @@ interface StaffMember {
 }
 
 export default function StaffPage() {
-  const { auth } = useAuth()
+  const token = useAppSelector((state: RootState) => state.auth.token)
+  const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
   const navigate = useNavigate()
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const authHeader = useMemo(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token])
 
   useEffect(() => {
     loadStaff()
@@ -47,7 +47,9 @@ export default function StaffPage() {
     }
   }
 
-  if (auth.role !== 'admin') {
+  const role = useAppSelector((state: RootState) => state.auth.role)
+
+  if (role !== 'admin') {
     return (
       <DashboardLayout>
         <div className="container-fluid py-4">

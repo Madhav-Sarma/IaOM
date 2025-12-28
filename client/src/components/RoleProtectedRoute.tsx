@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { useAuth } from '../context/AuthContext'
+import { useAppSelector } from '../store/hooks'
 import { Navigate } from 'react-router-dom'
+import type { RootState } from '../store/store'
 
 interface RoleProtectedRouteProps {
   children: ReactNode
@@ -16,19 +17,20 @@ export default function RoleProtectedRoute({
   children,
   requiredRole,
 }: RoleProtectedRouteProps) {
-  const { auth, isAuthenticated } = useAuth()
+  const isAuthenticated = useAppSelector((state: RootState) => state.auth.isAuthenticated)
+  const role = useAppSelector((state: RootState) => state.auth.role)
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
 
   // User is authenticated but has no role - send them to pick a package
-  if (!auth.role) {
+  if (!role) {
     return <Navigate to="/buy" replace />
   }
 
   // User has a role, but it doesn't match the required role (and it's not admin accessing staff-only)
-  if (requiredRole === 'admin' && auth.role !== 'admin') {
+  if (requiredRole === 'admin' && role !== 'admin') {
     return <Navigate to="/dashboard" replace />
   }
 

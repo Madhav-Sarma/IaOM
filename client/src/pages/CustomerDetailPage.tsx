@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { api } from '../api/client'
-import { useAuth } from '../context/AuthContext'
+import { useAppSelector } from '../store/hooks'
+import type { RootState } from '../store/store'
 import DashboardLayout from '../components/DashboardLayout'
 import StatusBadge from '../components/StatusBadge'
 import type { CustomerResponse } from '../types/customer'
@@ -32,8 +33,8 @@ interface GroupedReceipt {
 
 export default function CustomerDetailPage() {
   const { contact = '' } = useParams<{ contact: string }>()
-  const { auth } = useAuth()
-  const authHeader = useMemo(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token])
+  const token = useAppSelector((state: RootState) => state.auth.token)
+  const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
 
   const [customer, setCustomer] = useState<CustomerResponse | null>(null)
   const [orders, setOrders] = useState<OrderResponse[]>([])
@@ -351,7 +352,7 @@ export default function CustomerDetailPage() {
                 <input className="form-control form-control-sm" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
               </div>
               <div className="col-md-3 d-flex align-items-end gap-2">
-                <button className="btn btn-primary btn-sm text-white" onClick={loadOrders}>Apply</button>
+                {/* <button className="btn btn-primary btn-sm text-white" onClick={loadOrders}>Apply</button> */}
                 <button className="btn btn-primary btn-sm text-white" onClick={() => { setStatusFilter('all'); setStartDate(''); setEndDate(''); setTimeout(() => loadOrders(), 0) }}>Reset</button>
               </div>
             </div>

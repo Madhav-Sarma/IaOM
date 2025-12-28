@@ -50,6 +50,23 @@ def get_token_payload(credentials: HTTPAuthorizationCredentials = Depends(http_b
     payload = decode_access_token(credentials.credentials)
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    
+    # Check if user is active (only for users with user_id, not customers)
+    user_id = payload.get("user_id")
+    if user_id is not None:
+        from app.core.database import SessionLocal
+        from app.models.user import User
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.user_id == user_id).first()
+            if user and not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, 
+                    detail="Account has been deactivated. Please contact your administrator."
+                )
+        finally:
+            db.close()
+    
     return payload
 
 def require_roles(allowed_roles: List[str]) -> Callable:

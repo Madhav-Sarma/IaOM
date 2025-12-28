@@ -94,14 +94,15 @@ class AuthController:
             "person_name": person.person_name,
             "role": user.role if user else None,
             "store_id": user.store_id if user else None,
-            "has_package": has_package
+            "has_package": has_package,
+            "is_active": user.is_active if user else True
         }
     
     @staticmethod
     def buy_package(db: Session, data: BuyPackageRequest) -> dict:
         """Upgrade person to admin, create store, add to users table."""
-        # Check if person exists via unique contact
-        person = db.query(Person).filter(Person.person_contact == data.person_contact).first()
+        # Check if person exists via person_id
+        person = db.query(Person).filter(Person.person_id == data.person_id).first()
         if not person:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAppDispatch, useAppSelector } from '../store/hooks'
+import { logout } from '../store/authSlice'
 import { api } from '../api/client'
+import type { RootState } from '../store/store'
 import {
   FiHome,
   FiPackage,
@@ -27,16 +29,18 @@ const adminMenuItems = [
 ]
 
 export default function Sidebar() {
-  const { auth, logout } = useAuth()
+  const dispatch = useAppDispatch()
+  const token = useAppSelector((state: RootState) => state.auth.token)
+  const role = useAppSelector((state: RootState) => state.auth.role)
   const location = useLocation()
   const [isOpen, setIsOpen] = useState(false)
-  const [displayName, setDisplayName] = useState<string | null>(auth.personName)
+  const [displayName, setDisplayName] = useState<string | null>(null)
 
-  const authHeader = useMemo(() => ({ Authorization: `Bearer ${auth.token}` }), [auth.token])
+  const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
 
   // Fetch name from profile if not in auth context
   useEffect(() => {
-    if (!auth.personName && auth.token) {
+    if (token) {
       api.get('/auth/me', { headers: authHeader })
         .then(({ data }) => {
           if (data.person_name) {
@@ -46,18 +50,18 @@ export default function Sidebar() {
         })
         .catch(() => {
           // Fallback to role if profile fetch fails
-          setDisplayName(auth.role === 'admin' ? 'Admin' : 'Staff')
+          setDisplayName(role === 'admin' ? 'Admin' : 'Staff')
         })
     }
-  }, [auth.personName, auth.token])
+  }, [token, authHeader, role])
 
   const handleLogout = () => {
-    logout()
+    dispatch(logout())
   }
 
   const isActive = (href: string) => location.pathname === href
 
-  if (!auth.role) {
+  if (!role) {
     return null
   }
 
@@ -112,7 +116,7 @@ export default function Sidebar() {
             })}
           </ul>
 
-          {auth.role === 'admin' && (
+          {role === 'admin' && (
             <>
               <hr className="border-secondary my-3" />
               <small className="text-secondary text-uppercase px-3">Admin</small>
@@ -142,18 +146,18 @@ export default function Sidebar() {
         <div className="p-3 border-top border-secondary">
           <div className="d-flex align-items-center gap-2 mb-3">
             <div className="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style={{ width: '36px', height: '36px' }}>
-              {displayName ? displayName.charAt(0).toUpperCase() : (auth.role === 'admin' ? 'A' : 'S')}
+              {displayName ? displayName.charAt(0).toUpperCase() : (role === 'admin' ? 'A' : 'S')}
             </div>
             <div>
               <div className="small">{displayName || 'Loading...'}</div>
-              <small className="text-secondary">{auth.role?.toUpperCase()}</small>
+              <small className="text-secondary">{role?.toUpperCase()}</small>
             </div>
           </div>
           <Link to="/profile" className="btn btn-outline-light btn-sm w-100 mb-2 d-flex align-items-center justify-content-center gap-2">
             <FiUser size={16} />
             <span>Profile</span>
           </Link>
-          <button className="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2" onClick={handleLogout}>
+          <button className="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2 bg-danger" onClick={handleLogout}>
             <FiLogOut size={16} />
             <span>Logout</span>
           </button>

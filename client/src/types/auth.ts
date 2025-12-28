@@ -27,6 +27,7 @@ export interface LoginResponse {
   role: string | null
   store_id: number | null
   has_package: boolean
+  is_active: boolean
 }
 
 export interface BuyPackageRequest {

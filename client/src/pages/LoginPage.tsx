@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { api } from '../api/client'
-import { useAuth } from '../context/AuthContext'
+import { useAppDispatch } from '../store/hooks'
+import { setAuth } from '../store/authSlice'
 import Loader from '../components/Loader'
 import { useToast } from '../components/Toast'
 import type { LoginRequest, LoginResponse } from '../types/auth'
@@ -12,7 +13,7 @@ export default function LoginPage() {
   const [form, setForm] = useState<LoginRequest>(initial)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { login } = useAuth()
+  const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { addToast } = useToast()
 
@@ -20,9 +21,21 @@ export default function LoginPage() {
     setLoading(true); setError(null)
     try {
       const { data } = await api.post<LoginResponse>('/auth/login', form)
-      login(data.access_token, data.role || null, data.user_id || null, data.person_id, data.person_name, data.store_id || null, form.person_contact)
+      dispatch(setAuth({
+        token: data.access_token,
+        userId: data.user_id || null,
+        personId: data.person_id,
+        storeId: data.store_id || null,
+        role: (data.role as 'admin' | 'staff' | null) || null,
+        isActive: data.is_active
+      }))
       addToast('success', 'Login successful!')
-      if (data.has_package) {
+      
+      // Check if user is deactivated staff
+      if (data.has_package && !data.is_active) {
+        addToast('warning', 'Your account has been deactivated. Please contact your administrator or purchase a new package.')
+        navigate('/buy')
+      } else if (data.has_package) {
         navigate('/dashboard')
       } else {
         navigate('/buy')

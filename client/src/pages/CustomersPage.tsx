@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
+import { useAppSelector } from '../store/hooks'
+import type { RootState } from '../store/store'
 import DashboardLayout from '../components/DashboardLayout'
 import PageHeader from '../components/PageHeader'
 import Loader from '../components/Loader'
@@ -9,14 +11,11 @@ import { useToast } from '../components/Toast'
 import { FiUsers } from 'react-icons/fi'
 import type { CustomerCreate, CustomerUpdate, CustomerResponse, CustomerExistsResponse } from '../types/customer'
 
-function authHeader() {
-  const token = localStorage.getItem('token')
-  return token ? { Authorization: `Bearer ${token}` } : undefined
-}
-
 type ActiveView = 'list' | 'create' | 'check' | 'edit'
 
 export default function CustomersPage() {
+  const token = useAppSelector((state: RootState) => state.auth.token)
+  const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
   const [activeView, setActiveView] = useState<ActiveView>('list')
   const [createForm, setCreateForm] = useState<CustomerCreate>({ person_name:'', person_contact:'', person_email:'', person_address:'' })
   const [editContact, setEditContact] = useState('')
@@ -46,7 +45,7 @@ export default function CustomersPage() {
   const createCustomer = async () => {
     setLoading(true); setError(null)
     try {
-      const { data } = await api.post<CustomerResponse>('/customers', createForm, { headers: authHeader() })
+      const { data } = await api.post<CustomerResponse>('/customers', createForm, { headers: authHeader })
       setCreated(data)
       setCreateForm({ person_name:'', person_contact:'', person_email:'', person_address:'' })
       addToast('success', 'Customer created successfully')
@@ -62,7 +61,7 @@ export default function CustomersPage() {
     if (!editContact) { addToast('warning', 'Provide contact to edit'); return }
     setLoading(true); setError(null)
     try {
-      const { data } = await api.put<CustomerResponse>(`/customers/${encodeURIComponent(editContact)}`, updateForm, { headers: authHeader() })
+      const { data } = await api.put<CustomerResponse>(`/customers/${encodeURIComponent(editContact)}`, updateForm, { headers: authHeader })
       setUpdated(data)
       addToast('success', 'Customer updated successfully')
       listCustomers()
@@ -75,14 +74,14 @@ export default function CustomersPage() {
   }
   const listCustomers = async () => {
     setLoading(true); setError(null)
-    try { const { data } = await api.get<CustomerResponse[]>('/customers?skip=0&limit=50', { headers: authHeader() }); setList(data) }
+    try { const { data } = await api.get<CustomerResponse[]>('/customers?skip=0&limit=50', { headers: authHeader }); setList(data) }
     catch (err:any) { setError(err?.response?.data?.detail || 'List failed') } finally { setLoading(false) }
   }
   const checkCustomer = async () => {
     setLoading(true); setError(null)
     try {
       const params = new URLSearchParams(); if (checkContact) params.append('contact', checkContact); else if (checkEmail) params.append('email', checkEmail)
-      const { data } = await api.get<CustomerExistsResponse>(`/customers/check?${params.toString()}`, { headers: authHeader() })
+      const { data } = await api.get<CustomerExistsResponse>(`/customers/check?${params.toString()}`, { headers: authHeader })
       setExists(data)
     } catch (err:any) { setError(err?.response?.data?.detail || 'Check failed') } finally { setLoading(false) }
   }
@@ -293,15 +292,13 @@ export default function CustomersPage() {
                 </div>
                 <div className="card-body">
                   <nav aria-label="Customers pagination">
-                    <ul className="pagination pagination-sm mb-0 justify-content-end">
-                      <li className={`page-item ${page === 1 ? 'disabled' : ''}`}>
-                        <button className="page-link" onClick={() => setPage(Math.max(1, page - 1))}>«</button>
-                      </li>
-                      <li className="page-item disabled"><span className="page-link">Page {page} of {totalPages}</span></li>
-                      <li className={`page-item ${page >= totalPages ? 'disabled' : ''}`}>
-                        <button className="page-link" onClick={() => setPage(Math.min(totalPages, page + 1))}>»</button>
-                      </li>
-                    </ul>
+                    <div className="d-flex justify-content-end">
+                      <div className="btn-group">
+                        <button className="btn btn-outline-secondary btn-sm" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Prev</button>
+                        <span className="btn btn-outline-secondary btn-sm disabled">Page {page} / {totalPages}</span>
+                        <button className="btn btn-outline-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next</button>
+                      </div>
+                    </div>
                   </nav>
                 </div>
               </div>

@@ -1,7 +1,8 @@
 import './App.css'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './context/AuthContext'
-import { StoreProvider } from './context/StoreContext'
+import { Provider } from 'react-redux'
+import { store } from './store/store'
+import { useAppSelector } from './store/hooks'
 import { ToastProvider } from './components/Toast'
 import ProtectedRoute from './components/ProtectedRoute'
 import RoleProtectedRoute from './components/RoleProtectedRoute'
@@ -22,8 +23,10 @@ import ProfilePage from './pages/ProfilePage'
 import CustomerDetailPage from './pages/CustomerDetailPage'
 import StoreSetupPage from './pages/StoreSetupPage'
 
+import type { RootState } from './store/store'
+
 function DashboardRouter() {
-  const { auth } = useAuth()
+  const auth = useAppSelector((state: RootState) => state.auth)
   
   if (auth.role === 'admin') {
     return <AdminDashboard />
@@ -31,16 +34,40 @@ function DashboardRouter() {
   return <StaffDashboard />
 }
 
+function RootRedirect() {
+  const auth = useAppSelector((state: RootState) => state.auth)
+  
+  if (auth.isAuthenticated && auth.isActive) {
+    return <Navigate to="/dashboard" replace />
+  }
+  if (auth.isAuthenticated && !auth.isActive) {
+    return <Navigate to="/buy" replace />
+  }
+  return <Navigate to="/login" replace />
+}
+
+function AuthPageRedirect({ children }: { children: React.ReactNode }) {
+  const auth = useAppSelector((state: RootState) => state.auth)
+  
+  if (auth.isAuthenticated && auth.isActive) {
+    return <Navigate to="/dashboard" replace />
+  }
+  if (auth.isAuthenticated && !auth.isActive) {
+    return <Navigate to="/buy" replace />
+  }
+  return <>{children}</>
+}
+
 function AppRoutes() {
   return (
     <Routes>
       {/* Public pages */}
-      <Route path="/" element={<Navigate to="/signup" replace />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={<RootRedirect />} />
+      <Route path="/signup" element={<AuthPageRedirect><SignupPage /></AuthPageRedirect>} />
+      <Route path="/login" element={<AuthPageRedirect><LoginPage /></AuthPageRedirect>} />
+      <Route path="/buy" element={<PackagesPage />} />
 
       {/* Protected: Auth required */}
-      <Route path="/buy" element={<ProtectedRoute><PackagesPage /></ProtectedRoute>} />
       <Route path="/store-setup" element={<ProtectedRoute><StoreSetupPage /></ProtectedRoute>} />
 
       {/* Protected: Role required (Admin & Staff) */}
@@ -135,15 +162,13 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <StoreProvider>
-        <ToastProvider>
-          <BrowserRouter>
-            <NavBar />
-            <AppRoutes />
-          </BrowserRouter>
-        </ToastProvider>
-      </StoreProvider>
-    </AuthProvider>
+    <Provider store={store}>
+      <ToastProvider>
+        <BrowserRouter>
+          <NavBar />
+          <AppRoutes />
+        </BrowserRouter>
+      </ToastProvider>
+    </Provider>
   )
 }

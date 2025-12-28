@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { api } from '../api/client'
-import { useAuth } from '../context/AuthContext'
-import { useStore } from '../context/StoreContext'
+import { useAppSelector } from '../store/hooks'
+import type { RootState } from '../store/store'
 import DashboardLayout from '../components/DashboardLayout'
 import PageHeader from '../components/PageHeader'
 import Loader from '../components/Loader'
@@ -12,8 +12,9 @@ import { useToast } from '../components/Toast'
 import type { ProductResponse, ProductCreate, ProductUpdate, ProductInventoryUpdate } from '../types/product'
 
 export default function ProductsPage() {
-  const { auth } = useAuth()
-  const { currency } = useStore()
+  const token = useAppSelector((state: RootState) => state.auth.token)
+  const role = useAppSelector((state: RootState) => state.auth.role)
+  const currency = useAppSelector((state: RootState) => state.store.currency)
   const [products, setProducts] = useState<ProductResponse[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -53,7 +54,7 @@ export default function ProductsPage() {
     setLoading(true); setError(null)
     try {
       const { data } = await api.get<ProductResponse[]>('/products', {
-        headers: { Authorization: `Bearer ${auth.token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
       setProducts(data)
     } catch (err: any) {
@@ -68,7 +69,7 @@ export default function ProductsPage() {
     }
     try {
       const { data } = await api.post<ProductResponse>('/products', createForm, {
-        headers: { Authorization: `Bearer ${auth.token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
       setProducts([...products, data])
       setCreateForm({ SKU: '', prod_name: '', prod_category: '', prod_description: '', unit_price: 0, inventory: 0 })
@@ -82,7 +83,7 @@ export default function ProductsPage() {
   const handleUpdateProduct = async (prod_id: number) => {
     try {
       const { data } = await api.put<ProductResponse>(`/products/${prod_id}`, editForm, {
-        headers: { Authorization: `Bearer ${auth.token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
       setProducts(products.map(p => p.prod_id === prod_id ? data : p))
       setEditingId(null)
@@ -96,7 +97,7 @@ export default function ProductsPage() {
   const handleUpdateInventory = async (prod_id: number) => {
     try {
       const { data } = await api.put<ProductResponse>(`/products/${prod_id}/inventory`, inventoryForm, {
-        headers: { Authorization: `Bearer ${auth.token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
       setProducts(products.map(p => p.prod_id === prod_id ? data : p))
       setEditingInventoryId(null)
@@ -110,7 +111,7 @@ export default function ProductsPage() {
   const handleDeleteProduct = async (prod_id: number) => {
     try {
       const { data } = await api.delete(`/products/${prod_id}`, {
-        headers: { Authorization: `Bearer ${auth.token}` }
+        headers: { Authorization: `Bearer ${token}` }
       })
       setProducts(products.filter(p => p.prod_id !== prod_id))
       if (data.cancelled_orders > 0) {
@@ -175,7 +176,7 @@ export default function ProductsPage() {
         <PageHeader
           title="Products"
           subtitle="Manage inventory, pricing, and stock"
-          actions={(auth.role === 'admin' || auth.role === 'staff') ? (
+          actions={(role === 'admin' || role === 'staff') ? (
             <button className="btn btn-primary" onClick={() => setShowCreateForm(!showCreateForm)} aria-label="Add product">
               {showCreateForm ? 'Cancel' : '+ Add Product'}
             </button>
@@ -186,7 +187,7 @@ export default function ProductsPage() {
         {loading && <Loader message="Loading products..." />}
 
         {/* Create Product Form */}
-        {showCreateForm && (auth.role === 'admin' || auth.role === 'staff') && (
+        {showCreateForm && (role === 'admin' || role === 'staff') && (
           <div className="card mb-4">
             <div className="card-header">
               <h5 className="mb-0">Create New Product</h5>
@@ -269,8 +270,8 @@ export default function ProductsPage() {
         {products.length === 0 && !loading && (
           <EmptyState
             title="No products yet"
-            description={(auth.role === 'admin' || auth.role === 'staff') ? 'Create one to get started' : undefined}
-            action={(auth.role === 'admin' || auth.role === 'staff') ? (
+            description={(role === 'admin' || role === 'staff') ? 'Create one to get started' : undefined}
+            action={(role === 'admin' || role === 'staff') ? (
               <button className="btn btn-primary" onClick={() => setShowCreateForm(true)}>Add Product</button>
             ) : undefined}
           />
@@ -369,7 +370,7 @@ export default function ProductsPage() {
                               <button className="btn btn-success me-2 table-action-btn text-white" onClick={() => handleUpdateProduct(product.prod_id)}>Save</button>
                               <button className="btn btn-secondary me-2 table-action-btn text-white" onClick={() => setEditingId(null)}>Cancel</button>
                             </>
-                          ) : (auth.role === 'admin' || auth.role === 'staff') ? (
+                          ) : (role === 'admin' || role === 'staff') ? (
                             <button className="btn btn-outline-primary me-2 table-action-btn text-white" onClick={() => { setEditingId(product.prod_id); setEditForm({}) }}>Edit</button>
                           ) : null}
 
@@ -382,7 +383,7 @@ export default function ProductsPage() {
                             <button className="btn btn-outline-info me-2 table-action-btn text-white" onClick={() => { setEditingInventoryId(product.prod_id); setInventoryForm({ add_quantity: 0 }) }}>+ Stock</button>
                           )}
 
-                          {auth.role === 'admin' && (
+                          {role === 'admin' && (
                             <button className="btn btn-outline-danger me-2 table-action-btn text-white" onClick={() => setConfirmDeleteId(product.prod_id)}>Delete</button>
                           )}
                         </div>

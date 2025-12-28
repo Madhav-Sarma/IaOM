@@ -1,14 +1,13 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { api } from '../api/client'
+import { useAppSelector } from '../store/hooks'
+import type { RootState } from '../store/store'
 import DashboardLayout from '../components/DashboardLayout'
 import type { CreateStaffRequest, CreateStaffResponse } from '../types/auth'
 
-function authHeader() {
-  const token = localStorage.getItem('token')
-  return token ? { Authorization: `Bearer ${token}` } : undefined
-}
-
 export default function CreateStaffPage() {
+  const token = useAppSelector((state: RootState) => state.auth.token)
+  const authHeader = useMemo(() => ({ Authorization: `Bearer ${token}` }), [token])
   const [form, setForm] = useState<CreateStaffRequest>({ person_name:'', person_email:'', person_contact:'', person_address:'', password:'password' })
   const [result, setResult] = useState<CreateStaffResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -24,7 +23,7 @@ export default function CreateStaffPage() {
   const submit = async () => {
     setLoading(true); setError(null)
     try {
-      const { data } = await api.post<CreateStaffResponse>('/auth/create-staff', form, { headers: authHeader() })
+      const { data } = await api.post<CreateStaffResponse>('/auth/create-staff', form, { headers: authHeader })
       setResult(data)
     } catch (err:any) {
       setError(extractError(err, 'Create staff failed'))

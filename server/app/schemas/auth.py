@@ -30,11 +30,11 @@ class LoginResponse(BaseModel):
     person_name: str
     role: Optional[str]
     store_id: Optional[int]
-    has_package: bool
-
+    has_package: bool    
+    is_active: bool
 # Buy Package - upgrade person to admin, create store
 class BuyPackageRequest(BaseModel):
-    person_contact: str  # unique phone/contact id
+    person_id: int
     store_name: str
     store_address: str
 
