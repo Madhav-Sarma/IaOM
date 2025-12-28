@@ -1,23 +1,25 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useStore } from '../context/StoreContext'
 import { FiMenu, FiX } from 'react-icons/fi'
 
 export default function NavBar() {
-  const { isAuthenticated, auth, logout } = useAuth()
-  const navigate = useNavigate()
+  const { isAuthenticated, auth } = useAuth()
+  const { settings } = useStore()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
 
   return (
     <nav className="navbar navbar-expand-md navbar-dark navbar-glass px-3 px-md-4 fixed-top" style={{ zIndex: 1030 }}>
       <Link to={isAuthenticated && auth.role ? '/dashboard' : '/'} className="navbar-brand fw-bold" style={{ marginLeft: auth.role ? '50px' : '0' }}>
         IaOM
       </Link>
+
+      {/* Center store name */}
+      <div className="position-absolute start-50 translate-middle-x d-none d-md-block">
+        <span className="text-white fw-semibold">{settings?.store_name || 'Store'}</span>
+      </div>
       
       {/* Mobile toggle for non-sidebar users */}
       {!auth.role && (
@@ -41,11 +43,8 @@ export default function NavBar() {
           ) : (
             <>
               {!auth.role && <Link to="/buy" className="btn btn-outline-light btn-sm" onClick={() => setIsMenuOpen(false)}>View Packages</Link>}
-              {auth.role && (
-                <span className="badge rounded-pill bg-info text-dark">{auth.role === 'admin' ? 'Admin' : 'Staff'}</span>
-              )}
-              <span className="badge rounded-pill bg-secondary d-none d-sm-inline">ID:{auth.userId || auth.personId}</span>
-              <button onClick={handleLogout} className="btn btn-outline-danger btn-sm">Logout</button>
+              {/* Store name for mobile */}
+              <span className="text-white fw-semibold d-md-none">{settings?.store_name || 'Store'}</span>
             </>
           )}
         </div>
