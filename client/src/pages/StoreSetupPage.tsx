@@ -306,7 +306,7 @@ export default function StoreSetupPage() {
                     </div>
 
                     <div className="alert alert-info">
-                      <strong>💡 Pro Tip:</strong> You can change these settings anytime from the Store Settings page in your dashboard.
+                      <strong>Note</strong> You can change these settings anytime from the Store Settings page in your dashboard.
                     </div>
 
                     <div className="d-grid gap-2">
@@ -322,13 +322,13 @@ export default function StoreSetupPage() {
                           </>
                         ) : (
                           <>
-                            🚀 Complete Setup & Start Managing
+                            Complete Setup & Start Managing
                           </>
                         )}
                       </button>
                       <button 
                         type="button" 
-                        className="btn btn-outline-secondary"
+                        className="btn btn-outline-secondary text-white"
                         onClick={() => setCurrentStep(2)}
                         disabled={loading}
                       >

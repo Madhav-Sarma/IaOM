@@ -157,9 +157,12 @@ export default function Sidebar() {
             <FiUser size={16} />
             <span>Profile</span>
           </Link>
-          <button className="btn btn-outline-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2 bg-danger" onClick={handleLogout}>
+          <button
+            className="btn btn-danger btn-sm w-100 d-flex align-items-center justify-content-center gap-2"
+            onClick={handleLogout}
+          >
             <FiLogOut size={16} />
-            <span>Logout</span>
+            <span className="text-white">Logout</span>
           </button>
         </div>
       </aside>
