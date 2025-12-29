@@ -269,7 +269,7 @@ IaOM/
 ---
 
 ## Database Schema
-
+![IaOM Database Schema Diagram](./IaOm Schema.png)
 **Key Tables:**
 - `user` - Users (admin/staff/customer)
 - `store` - Stores with settings (currency, stock thresholds, etc.)
@@ -286,36 +286,6 @@ IaOM/
 
 ---
 
-## Development
-
-### Running Tests
-
-Backend:
-```bash
-cd server
-pytest
-```
-
-Frontend:
-```bash
-cd client
-npm run test
-```
-
-### Building for Production
-
-**Backend:**
-```bash
-# Build Docker image or run with gunicorn
-gunicorn app.main:app --workers 4
-```
-
-**Frontend:**
-```bash
-cd client
-npm run build
-# Output: dist/
-```
 
 ### Linting & Formatting
 
@@ -343,7 +313,7 @@ npm run format
 - Ensure database exists: `CREATE DATABASE iaom_db;`
 
 ### CORS Errors
-- Backend CORS is configured for `http://localhost:5173` and `http://127.0.0.1:5173`
+- Backend CORS is configured for `http://localhost:5173` and `http://127.0.0.1:5173` and `https://iaom.vercel.app`
 - Update `server/app/main.py` if running frontend on different port
 
 ### Alembic Migration Errors
@@ -365,9 +335,6 @@ npm run format
 
 ---
 
-## License
-
-This project is provided as-is for educational and development purposes.
 
 ---
 
@@ -377,4 +344,11 @@ For issues, questions, or suggestions, open an issue in the repository or contac
 
 ---
 
-**Happy ordering! 🚀**
+## Notes on AI Tool Usage and External Resources
+
+This project was developed using AI-assisted tools as part of the implementation workflow.
+
+- **GitHub Copilot** was used.
+
+While AI has been used,the requirement gathereing, the Schema design, API design,decisions and bussiness logic did not include usage of AI.
+ 
