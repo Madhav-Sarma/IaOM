@@ -269,7 +269,7 @@ IaOM/
 ---
 
 ## Database Schema
-![IaOM Database Schema Diagram](./IaOm Schema.png)
+![IaOM Database Schema Diagram](https://www.plantuml.com/plantuml/png/dLJ1Qjmm4BthAyHUUYWvv5f22AKKGg1TkitPJAHfB29ht9bnWblwxvLNs3MxyXvwazzxypHF6lbE55Y7BfesUBGTQajUoeSeCfAEFOenBeA8FIWnsj_6slSoBPlWxGTxdnIVaUtDpVxXzZQJXKlGOMOFoY4zBoXupoYo9YAzDPbqBusscMifhbmpprXAYuPIuo0vZ5dpaIWYfCaS8aeJYLwU88iyZ7BYGUoHcvOu_A9qBd03CoOt_clipvnwp-G7foLtdpyknZxXFXVkyF2uZZovb0Cw1HtaIkBnZF0eZaElWTAQ6rBGfkVW9gilGuTvcU6GNZ5fyPb3Be7kPx94MhJ_aQilPrDbItDIw-0hU-IoUxcNhPr11rd7TOoWw1lGZ7xAo--XmscdtbVn9LkzmyNlQQocGnPA6wMbyPy390rQFUVziRp4h5ljr_kS3qI1iOCGAxYZfE2qmbGUMGyYRyI-Cj-FCj_585jNSVaec6BbgTUrGHfm6bvnzNvpA-_iDummJRUqeHTJVZMxwvszkhgrkmxIk9jVOgvieIvPpVO5qPGuyzZraKOnPlQzu7Ny-Q1lGZ9cmKyAobXdCUCFP4pkE5Z6b3dO4lSH7CgPw7ffCuOqxQnap8Hi-PHH5dE7oGzT_0i0)
 **Key Tables:**
 - `user` - Users (admin/staff/customer)
 - `store` - Stores with settings (currency, stock thresholds, etc.)
