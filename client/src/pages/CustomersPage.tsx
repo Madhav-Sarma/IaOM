@@ -43,9 +43,22 @@ export default function CustomersPage() {
   }, [])
 
   const createCustomer = async () => {
+    // Front-end required-field validation to prevent 422 from API
+    const payload = {
+      person_name: createForm.person_name.trim(),
+      person_contact: createForm.person_contact.trim(),
+      person_email: createForm.person_email.trim(),
+      person_address: createForm.person_address.trim(),
+    }
+
+    if (!payload.person_name || !payload.person_contact || !payload.person_email || !payload.person_address) {
+      addToast('warning', 'Name, email, contact, and address are required')
+      return
+    }
+
     setLoading(true); setError(null)
     try {
-      const { data } = await api.post<CustomerResponse>('/customers', createForm, { headers: authHeader })
+      const { data } = await api.post<CustomerResponse>('/customers', payload, { headers: authHeader })
       setCreated(data)
       setCreateForm({ person_name:'', person_contact:'', person_email:'', person_address:'' })
       addToast('success', 'Customer created successfully')
@@ -327,7 +340,7 @@ export default function CustomersPage() {
                   <input className="form-control" value={createForm.person_contact} onChange={(e)=>setCreateForm({...createForm, person_contact:e.target.value})} placeholder="Enter phone number" />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label">Address</label>
+                  <label className="form-label">Address *</label>
                   <input className="form-control" value={createForm.person_address} onChange={(e)=>setCreateForm({...createForm, person_address:e.target.value})} placeholder="Enter address" />
                 </div>
                 <div className="col-12">
